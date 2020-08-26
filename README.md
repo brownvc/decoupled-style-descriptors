@@ -8,5 +8,8 @@ http://dsd.cs.brown.edu/
 
 ![High-level overview of approach.](sample.gif)
 
+We synthesize handwriting (bottom) in a target style (top) via learned spaces of style and content,
+and can exploit any available reference samples (middle) to improve output quality.
+
 ## Code release coming soon!
 Please watch and star this repo to be notified : )
