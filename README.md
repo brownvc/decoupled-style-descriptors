@@ -12,4 +12,5 @@ We synthesize handwriting (bottom) in a target style (top) via learned spaces of
 and can exploit any available reference samples (middle) to improve output quality.
 
 ## Code release coming soon!
-Please watch and star this repo to be notified : )
+Please watch and star this repo to be notified : )  
+*Our apologies for the delay; COVID-19 has caused some difficulties.*
