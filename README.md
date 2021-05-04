@@ -78,10 +78,10 @@ sacrifice temporal information in exchange for a consistence distance between po
       ![resampled 20](samples/25.png)
       In this resampled drawing, N=360 and M=19 (i.e. 'qualms politics ;[A').
 
-## Term of Use and Citation Request
+## Terms of Use
 The BRUSH dataset may only be used for non-commercial research purpose.
 Anyone wanting to use it for other purposes should contact [Prof. James Tompkin](www.jamestompkin.com).
-If you publish materials based on this database, we request you to include a reference to our paper.
+If you publish materials based on this database, we request that you please include a reference to our paper.
 
 ```
 @inproceedings{kotani2020generating,
