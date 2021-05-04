@@ -24,6 +24,24 @@ This is the BRUSH dataset from the paper "[Generating Handwriting via Decoupled 
 The BRUSH dataset can be downloaded from
 [this link](https://drive.google.com/drive/folders/1wUgNsBebpIZJEATlduB8LjGKEHOWtv2o?usp=sharing) (compressed ZIP 566.6MB).
 
+
+## Terms of Use
+The BRUSH dataset may only be used for non-commercial research purpose.
+Anyone wanting to use it for other purposes should contact [Prof. James Tompkin](www.jamestompkin.com).
+If you publish materials based on this database, we request that you please include a reference to our paper.
+
+```
+@inproceedings{kotani2020generating,
+  title={Generating Handwriting via Decoupled Style Descriptors},
+  author={Kotani, Atsunobu and Tellex, Stefanie and Tompkin, James},
+  booktitle={European Conference on Computer Vision},
+  pages={764--780},
+  year={2020},
+  organization={Springer}
+}
+```
+
+
 ## Data specification
 
 Each folder contains drawings by the same writer, and each file is compressed with Python 3.8.5 pickle as it follows.
@@ -78,18 +96,3 @@ sacrifice temporal information in exchange for a consistence distance between po
       ![resampled 20](samples/25.png)
       In this resampled drawing, N=360 and M=19 (i.e. 'qualms politics ;[A').
 
-## Terms of Use
-The BRUSH dataset may only be used for non-commercial research purpose.
-Anyone wanting to use it for other purposes should contact [Prof. James Tompkin](www.jamestompkin.com).
-If you publish materials based on this database, we request that you please include a reference to our paper.
-
-```
-@inproceedings{kotani2020generating,
-  title={Generating Handwriting via Decoupled Style Descriptors},
-  author={Kotani, Atsunobu and Tellex, Stefanie and Tompkin, James},
-  booktitle={European Conference on Computer Vision},
-  pages={764--780},
-  year={2020},
-  organization={Springer}
-}
-```
