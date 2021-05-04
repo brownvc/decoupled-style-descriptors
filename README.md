@@ -26,7 +26,7 @@ The BRUSH dataset can be downloaded from
 
 
 ## Terms of Use
-The BRUSH dataset may only be used for non-commercial research purpose.
+The BRUSH dataset may only be used for non-commercial research purposes.
 Anyone wanting to use it for other purposes should contact [Prof. James Tompkin](www.jamestompkin.com).
 If you publish materials based on this database, we request that you please include a reference to our paper.
 
