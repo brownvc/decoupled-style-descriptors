@@ -11,18 +11,26 @@ http://dsd.cs.brown.edu/
 We synthesize handwriting (bottom) in a target style (top) via learned spaces of style and content,
 and can exploit any available reference samples (middle) to improve output quality.
 
-## Code release coming soon!
-Please watch and star this repo to be notified : )  
-*Our apologies for the delay; COVID-19 has caused some difficulties.*
+# License
+This project has Brown CS Copyright, and we do not allow any commercial use of our project. Plese see details in [here](LICENSE).
 
+# Preparation
 
+The trained model needs to be downloaded from [here](https://drive.google.com/file/d/1oK1yWs3xVsVkZRP_Pr7SSPr3dYXpZwax/view?usp=sharing) and save it under ./model directory.
+
+Further, please download the dataset from [here](https://drive.google.com/file/d/1pfUKaYkFu8HpX4f5rlg0spgTk2wwbKzP/view?usp=sharing) and decompress the zip file under ./data directory. The folder should be located as './data/writers'.
+
+# Code
+You can generate handwritng samples with: ```python sample.py```. Please check out [the script](sample.py) for possible arguments.
+
+The trained model is shared under ./model folder, and it has been trained with the following: ```python -u main.py --divider 5.0 --weight_dim 256 --sample 5 --device 0 --num_layers 3 --num_writer 1 --lr 0.001 --VALIDATION 1 --datadir 2 --TYPE_B 0 --TYPE_C 0```.
 
 # BRUSH dataset
 
 This is the BRUSH dataset (BRown University Stylus Handwriting) from the paper "[Generating Handwriting via Decoupled Style Descriptors](http://dsd.cs.brown.edu/)" by Atsunobu Kotani, Stefanie Tellex, James Tompkin from Brown University, presented at European Conference on Computer Vision (ECCV) 2020. This dataset contains 27,649 online handwriting samples, and the total of 170 writers contributed to create this dataset. Every sequence is labeled with characters (i.e. users can identify what character a point in a sequence corresponds with.
 
 The BRUSH dataset can be downloaded from
-[this link](https://drive.google.com/drive/folders/1wUgNsBebpIZJEATlduB8LjGKEHOWtv2o?usp=sharing) (compressed ZIP 566.6MB).
+[this link](https://drive.google.com/file/d/1NIIXDfmpUhI6i80Dg2363PIdllY7FRVQ/view?usp=sharing) (compressed ZIP 566.6MB). (The original dataset used for ECCV paper is also in [here](https://drive.google.com/file/d/1pfUKaYkFu8HpX4f5rlg0spgTk2wwbKzP/view?usp=sharing).)
 
 
 ## Terms of Use
