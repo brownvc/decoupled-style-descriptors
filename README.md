@@ -12,25 +12,30 @@ We synthesize handwriting (bottom) in a target style (top) via learned spaces of
 and can exploit any available reference samples (middle) to improve output quality.
 
 # License
-This project has Brown CS Copyright, and we do not allow any commercial use of our project. Plese see details in [here](LICENSE).
+This project is licenced under the Brown Computer Science Department Copyright Notice, which does not allow commercial use. Plese see details in [here](LICENSE).
 
-# Preparation (Before you run the codes)
+# Preparation (Before you run the code)
 
-The trained model needs to be downloaded from [here](https://drive.google.com/file/d/1oK1yWs3xVsVkZRP_Pr7SSPr3dYXpZwax/view?usp=sharing) and save it under ./model directory.
+The trained model must be downloaded from [here](https://drive.google.com/file/d/1oK1yWs3xVsVkZRP_Pr7SSPr3dYXpZwax/view?usp=sharing) and saved under the `./model` directory.
 
-Further, please download the dataset from [here](https://drive.google.com/file/d/1pfUKaYkFu8HpX4f5rlg0spgTk2wwbKzP/view?usp=sharing) and decompress the zip file under ./data directory. The folder should be located as './data/writers'.
+Further, please download the dataset from [here](https://drive.google.com/file/d/1pfUKaYkFu8HpX4f5rlg0spgTk2wwbKzP/view?usp=sharing) and decompress the zip file into the `./data` directory. The folder should be located as `'./data/writers'`.
 
 # Code
-You can generate handwritng samples with: 
+You can generate handwriting samples with:
 ```
 python sample.py
 ```
 Please check out [the script](sample.py) for potential arguments.
 
-The trained model has been trained using the following command:
+The provided model has been trained using the following command:
 ```
 python -u main.py --divider 5.0 --weight_dim 256 --sample 5 --device 0 --num_layers 3 --num_writer 1 --lr 0.001 --VALIDATION 1 --datadir 2 --TYPE_B 0 --TYPE_C 0
 ```
+
+# Insights
+
+The current model, as published at ECCV 2020 and for consistency with it, does not include a supervised character loss. 
+Adding this can improve quality especially in cases where generation does not terminate as expected (characters run on).
 
 # BRUSH dataset
 
