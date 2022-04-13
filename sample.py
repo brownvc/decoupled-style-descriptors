@@ -1,5 +1,4 @@
 import os
-from cv2 import split
 import torch
 import pickle
 import argparse
@@ -106,10 +105,10 @@ def main(params):
 			available = False
 			for end_index in range(len(target_word), index, -1):
 				segment = target_word[index:end_index]
-				print (segment)
+				# print (segment)
 
 				if segment in available_segments:
-					print (f'in dic - {segment}')
+					# print (f'in dic - {segment}')
 					available = True
 					candidates = available_segments[segment]
 					segment_level_stroke_out, split_ids = candidates[np.random.randint(len(candidates))]
@@ -127,7 +126,7 @@ def main(params):
 
 			if not available:
 				character = target_word[index]
-				print (f'no dic - {character}')
+				# print (f'no dic - {character}')
 				char_vector = torch.eye(len(CHARACTERS))[CHARACTERS.index(character)].to(device).unsqueeze(0)
 				out = net.char_vec_fc_1(char_vector)
 				out = net.char_vec_relu_1(out)
@@ -228,7 +227,7 @@ def main(params):
 			for end_index in range(len(target_word), index, -1):
 				segment = target_word[index:end_index]
 				if segment in available_segments:
-					print (f'in dic - {segment}')
+					# print (f'in dic - {segment}')
 					available = True
 					candidates = available_segments[segment]
 					segment_level_stroke_in, segment_level_stroke_out, split_ids = candidates[np.random.randint(len(candidates))]
@@ -237,7 +236,7 @@ def main(params):
 					seg_W_c, _ = net.inf_state_lstm(out)
 					tmp = []
 					for id in split_ids[0]:
-						print (id)
+						# print (id)
 						tmp.append(seg_W_c[0, id].squeeze())
 					all_W_c.append(tmp)
 					index = end_index
@@ -260,7 +259,7 @@ def main(params):
 
 			if not available:
 				character = target_word[index]
-				print (f'no dic - {character}')
+				# print (f'no dic - {character}')
 				char_vector = torch.eye(len(CHARACTERS))[CHARACTERS.index(character)].to(device).unsqueeze(0)
 				out = net.char_vec_fc_1(char_vector)
 				out = net.char_vec_relu_1(out)

@@ -17,3 +17,4 @@ model/250000.pt
 data/writers
 results/*
 original_BRUSH.zip
+dsd_env/

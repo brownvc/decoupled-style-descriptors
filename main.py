@@ -233,7 +233,8 @@ def main(params):
 		torch.nn.utils.clip_grad_norm_(net.parameters(), grad_clip)
 		for p in net.parameters():
 			if p.grad is not None:
-				p.data.add_(-lr, p.grad.data)
+				# p.data.add_(-lr, p.grad.data)
+				p.data.add_(p.grad.data, alpha=-lr)
 
 		optimizer.step()
 

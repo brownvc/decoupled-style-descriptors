@@ -1577,7 +1577,7 @@ class SynthesisNetwork(nn.Module):
 		new_char = False
 		renewal = False
 		for zz in range(800):
-			print (torch.sum(gc1))
+			# print (torch.sum(gc1))
 			W_c_t_now = W_c_rec[current_char_id_count:current_char_id_count + 1]
 
 			gen_state = self.gen_state_fc1(gen_input)
@@ -1626,7 +1626,7 @@ class SynthesisNetwork(nn.Module):
 
 			character_nums += 1
 
-			print (zz, term)
+			# print (zz, term)
 			if term > 0.5:
 				if character_nums > 5:
 					current_char_id_count += 1

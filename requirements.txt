@@ -1,0 +1,8 @@
+numpy==1.22.3
+Pillow==9.1.0
+protobuf==3.20.0
+scipy==1.8.0
+six==1.16.0
+tensorboardX==2.5
+torch==1.11.0
+typing_extensions==4.1.1

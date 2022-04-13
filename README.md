@@ -20,6 +20,12 @@ The trained model must be downloaded from [here](https://drive.google.com/file/d
 
 Further, please download the dataset from [here](https://drive.google.com/file/d/1pfUKaYkFu8HpX4f5rlg0spgTk2wwbKzP/view?usp=sharing) and decompress the zip file into the `./data` directory. The folder should be located as `'./data/writers'`.
 
+Finally, please install dependencies with:
+```
+pip install -r requirements.txt
+```
+We tested our codes run in Python 3.9.12 without issues.
+
 # Code
 You can generate handwriting samples with:
 ```
