@@ -16,7 +16,8 @@ This project is licenced under the Brown Computer Science Department Copyright N
 
 # Preparation (Before you run the code)
 
-The trained model must be downloaded from [here](https://drive.google.com/file/d/1oK1yWs3xVsVkZRP_Pr7SSPr3dYXpZwax/view?usp=sharing) and saved under the `./model` directory.
+In the root of a project directory of your choice, create `./model`, `./data`, and `./results` subdirectories.
+Then, download our pretrained model from [here](https://drive.google.com/file/d/1oK1yWs3xVsVkZRP_Pr7SSPr3dYXpZwax/view?usp=sharing) and save it under the `./model` directory.
 
 Further, please download the dataset from [here](https://drive.google.com/file/d/1pfUKaYkFu8HpX4f5rlg0spgTk2wwbKzP/view?usp=sharing) and decompress the zip file into the `./data` directory. The folder should be located as `'./data/writers'`.
 
@@ -41,7 +42,7 @@ python -u main.py --divider 5.0 --weight_dim 256 --sample 5 --device 0 --num_lay
 # Insights
 
 The current model, as published at ECCV 2020 and for consistency with it, does not include a supervised character loss. 
-Adding this can improve quality especially in cases where generation does not terminate as expected (characters run on).
+Adding this can improve quality in cases where generation does not terminate as expected (characters run on).
 
 # BRUSH dataset
 
