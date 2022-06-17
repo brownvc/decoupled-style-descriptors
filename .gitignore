@@ -13,7 +13,7 @@ config/__pycache__
 new
 *.png
 writers.zip
-model/250000.pt
+model/*
 data/writers
 results/*
 original_BRUSH.zip
