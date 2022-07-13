@@ -41,15 +41,15 @@ def main(params):
         im.convert("RGB").save(f'results/writer_120/output.png')
 
 
-def get_W_c(all_writer_Ws, all_writer_Cs, i):
+def get_W_c(writer_Ws, char_matrix):
+    # def get_W_c(all_writer_Ws, all_writer_Cs, i):
     # interpolate between two W vectors
-    amt = 0.2
-    W1, W2, *_ = all_writer_Ws
-    C1, C2, *_ = all_writer_Cs
-    new_W_vector = W1[i] * amt + W2[i] * (1 - amt)
+    amt = 0.6
+    W1, W2, *_ = writer_Ws
+    new_W_vector = W1 * amt + W2 * (1 - amt)
 
     # return to character-style-DSD
-    return torch.bmm(C1[i], new_W_vector)
+    return torch.bmm(char_matrix, new_W_vector)
 
 
 def get_mean_global_W(net, loaded_data, device):
@@ -109,64 +109,27 @@ def get_mean_global_W(net, loaded_data, device):
 
 def sample_word(net, target_word, writer_global_Ws, all_loaded_data, device):
     all_writer_Ws = []
-    all_writer_Cs = []
-    all_available_segments = []
+    all_C = []
+
     for mean_global_W, loaded_data in zip(writer_global_Ws, all_loaded_data):
         np.random.seed(0)
-        writer_Ws, writer_Cs, available_segments = get_W_and_C(net, target_word, mean_global_W, loaded_data, device)
+        writer_Ws, all_C = get_W_and_C(net, target_word, mean_global_W, loaded_data, device)
         all_writer_Ws.append(writer_Ws)
-        all_writer_Cs.append(writer_Cs)
-        all_available_segments.append(available_segments)
 
-    np.random.seed(0)
-    seg_idx = 0
-
-    available_segments = all_available_segments[0]  # assuming they are the same for all
-
-    index = 0
     all_W_c = []
 
     # TODO: deal with the fact that different writers have different available segments
-    while index <= len(target_word):
-        available = False
-        for end_index in range(len(target_word), index, -1):
-            segment = target_word[index:end_index]
-            # print (segment)
+    lens = [len(w) for w in all_writer_Ws]
+    for i in range(min(lens)):
+        tmp = []
+        sub_lens = [len(w[i]) for w in all_writer_Ws]
+        char_matrix = all_C[i]
 
-            if segment in available_segments:  # method beta
-                # print(f'in dic - {segment}')
-
-                available = True
-                candidates = available_segments[segment]
-                _, split_ids = candidates[np.random.randint(len(candidates))]
-
-                tmp = []
-                for id in split_ids[0]:
-                    W_c = get_W_c(all_writer_Ws, all_writer_Cs, seg_idx)
-                    tmp.append(W_c.squeeze())  # segment level W_c vector
-
-                    seg_idx += 1
-
-                all_W_c.append(tmp)
-                index = end_index
-
-        if index == len(target_word):
-            break
-
-        if not available:  # method alpha
-            TYPE_A_WC = get_W_c(all_writer_Ws, all_writer_Cs, seg_idx).squeeze()
-            all_W_c.append([TYPE_A_WC])
-
-            index += 1
-            seg_idx += 1
-    # for i in range(len(all_writer_Ws[0])):
-    #     tmp = []
-    #     for j in range(len(all_writer_Ws[0][i])):
-    #         W_vector = [w[i][j] for w in all_writer_Ws]
-    #         char_matrix = [c[i] for c in all_writer_Cs]
-    #         W_c = get_W_c(W_vector, char_matrix).squeeze()
-    #         tmp.append(W_c)
-    #     all_W_c.append(tmp)
+        for j in range(min(sub_lens)):
+            W_vector = [w[i][j] for w in all_writer_Ws]
+            W_c = get_W_c(W_vector, char_matrix).squeeze()
+            tmp.append(W_c)
+        all_W_c.append(tmp)
 
     return all_W_c
 
@@ -218,17 +181,18 @@ def get_W_and_C(net, target_word, mean_global_W, loaded_data, device):
                 out = net.char_vec_fc2_1(out)
                 char_matrix = out.view([-1, 256, 256])
                 inv_char_matrix = char_matrix.inverse()
+
                 tmp = []
                 for id in split_ids[0]:
                     W_c_vector = seg_W_c[0, id].squeeze()
 
                     # invert to get writer-independed DSD
                     W_vector = torch.bmm(inv_char_matrix, W_c_vector.repeat(inv_char_matrix.size(0), 1).unsqueeze(2))
-                    # tmp.append(W_vector)
-                    all_W.append(W_vector)
-                    all_C.append(char_matrix)
-                # all_W.append(tmp)
-                # all_C.append(char_matrix)
+                    tmp.append(W_vector)
+                    # all_W.append(W_vector)
+                    # all_C.append(char_matrix)
+                all_W.append(tmp)
+                all_C.append(char_matrix)
                 index = end_index
 
         if index == len(target_word):
@@ -253,7 +217,7 @@ def get_W_and_C(net, target_word, mean_global_W, loaded_data, device):
 
             index += 1
 
-    return all_W, all_C, available_segments
+    return all_W, all_C
 
 
 def get_commands(net, target_word, all_W_c):
