@@ -35,24 +35,14 @@ def main(params):
         loaded_data = dl.next_batch(TYPE='TRAIN', uid=writer_id, tids=[i for i in range(params.num_samples)])
         all_loaded_data.append(loaded_data)
 
-    target_word = "hello"
+    target_word = "the quick brown fox"
     if len(target_word) > 0:
         im = sample(net, target_word, all_loaded_data, device)
         im.convert("RGB").save(f'results/writer_120/output.png')
 
 
-def get_W_c(writer_Ws, char_matrix):
-    # def get_W_c(all_writer_Ws, all_writer_Cs, i):
-    # interpolate between two W vectors
-    amt = 0.6
-    W1, W2, *_ = writer_Ws
-    new_W_vector = W1 * amt + W2 * (1 - amt)
-
-    # return to character-style-DSD
-    return torch.bmm(char_matrix, new_W_vector)
-
-
 def get_mean_global_W(net, loaded_data, device):
+    """gets the mean global style vector for a given writer"""
     [_, _, _, _, _, _, all_word_level_stroke_in, all_word_level_stroke_out, all_word_level_stroke_length, all_word_level_term, all_word_level_char, all_word_level_char_length, all_segment_level_stroke_in, all_segment_level_stroke_out,
         all_segment_level_stroke_length, all_segment_level_term, all_segment_level_char, all_segment_level_char_length] = loaded_data
 
@@ -107,34 +97,50 @@ def get_mean_global_W(net, loaded_data, device):
         return mean_global_W
 
 
-def sample_word(net, target_word, writer_global_Ws, all_loaded_data, device):
+def get_W_c(net, target_word, writer_global_Ws, all_loaded_data, device):
+    """generates character-dependent style-dependent DSDs for each character/segement in target_word"""
     all_writer_Ws = []
-    all_C = []
+    all_writer_Cs = []
 
     for mean_global_W, loaded_data in zip(writer_global_Ws, all_loaded_data):
         np.random.seed(0)
-        writer_Ws, all_C = get_W_and_C(net, target_word, mean_global_W, loaded_data, device)
-        all_writer_Ws.append(writer_Ws)
+        all_W, all_C = get_DSD(net, target_word, mean_global_W, loaded_data, device)
+        all_writer_Ws.append(all_W)
+        all_writer_Cs.append(all_C)
 
-    all_W_c = []
+    W_weights = [0.6, 0.4]
+
+    # possible future optimization using tensor dot product instead of for loops
+    # would need to figure out dimensions later
+    # convert to tensors so we can take a dot product
+    # W_weights_tensor = torch.tensor(W_weights, dtype=torch.float)
+    # writer_Ws_tensor = torch.stack(all_writer_Ws, axis=-2)
+    # C_weights_tensor = torch.tensor(C_weights, dtype=torch.float).reshape(1, 1, -1)
+    # char_matrices_tensor = torch.stack(all_writer_Cs, axis=-2)
+
+    # # take weighted averages
+    # W_vector = W_weights_tensor @ writer_Ws_tensor
+    # char_matrix = C_weights_tensor @ chat_matrices_tensor
+
+    # # recombine decoupled style descriptors
+    # all_W_c = char_matrix @ W_vector
 
     # TODO: deal with the fact that different writers have different available segments
-    lens = [len(w) for w in all_writer_Ws]
-    for i in range(min(lens)):
-        tmp = []
-        sub_lens = [len(w[i]) for w in all_writer_Ws]
-        char_matrix = all_C[i]
+    all_W_c = []
+    for char_idx in range(len(all_writer_Ws[0])):  # loop through characters
+        W_vector = torch.zeros_like(all_writer_Ws[0][0])  # start at zero for weighted sum
+        for writ_idx in range(len(all_writer_Ws)):  # loop through writers
+            W_vector += all_writer_Ws[writ_idx][char_idx] * W_weights[writ_idx]
 
-        for j in range(min(sub_lens)):
-            W_vector = [w[i][j] for w in all_writer_Ws]
-            W_c = get_W_c(W_vector, char_matrix).squeeze()
-            tmp.append(W_c)
-        all_W_c.append(tmp)
+        char_matrix = all_writer_Cs[0][char_idx]  # character matrices should all be the same anyway
+        W_c = char_matrix @ W_vector
+        all_W_c.append([W_c.squeeze()])
 
     return all_W_c
 
 
-def get_W_and_C(net, target_word, mean_global_W, loaded_data, device):
+def get_DSD(net, target_word, mean_global_W, loaded_data, device):
+    """returns a style vector and character matrix for each character/segment in target_word"""
 
     [_, _, _, _, _, _, all_word_level_stroke_in, all_word_level_stroke_out, all_word_level_stroke_length, all_word_level_term, all_word_level_char, all_word_level_char_length, all_segment_level_stroke_in, all_segment_level_stroke_out,
         all_segment_level_stroke_length, all_segment_level_term, all_segment_level_char, all_segment_level_char_length] = loaded_data
@@ -154,53 +160,57 @@ def get_W_and_C(net, target_word, mean_global_W, loaded_data, device):
     all_W = []
     all_C = []
 
-    while index <= len(target_word):
+    # while index <= len(target_word):
+    while index < len(target_word):
         available = False
-        for end_index in range(len(target_word), index, -1):
-            segment = target_word[index:end_index]
-            # print (segment)
+        # Currently this just uses each character individually instead of the whole segment
+        # for end_index in range(len(target_word), index, -1):
+        #     segment = target_word[index:end_index]
+        # print (segment)
+        segment = target_word[index]
+        if segment in available_segments:  # method beta
+            # print(f'in dic - {segment}')
+            available = True
+            candidates = available_segments[segment]
+            segment_level_stroke_out, split_ids = candidates[np.random.randint(len(candidates))]
+            out = net.inf_state_fc1(torch.FloatTensor(segment_level_stroke_out).to(device).unsqueeze(0))
+            out = net.inf_state_relu(out)
+            seg_W_c, (h_n, _) = net.inf_state_lstm(out)
 
-            if segment in available_segments:  # method beta
-                # print(f'in dic - {segment}')
-                available = True
-                candidates = available_segments[segment]
-                segment_level_stroke_out, split_ids = candidates[np.random.randint(len(candidates))]
-                out = net.inf_state_fc1(torch.FloatTensor(segment_level_stroke_out).to(device).unsqueeze(0))
-                out = net.inf_state_relu(out)
-                seg_W_c, (h_n, _) = net.inf_state_lstm(out)
+            character = segment[0]  # take the first character of the segment?
+            # TODO: get matrix for whole segment
 
-                character = segment[0]  # take the first character of the segment?
-                # TODO: get matrix for whole segment
+            # get character matrix using same method as method beta
+            char_vector = torch.eye(len(CHARACTERS))[CHARACTERS.index(character)].to(device).unsqueeze(0)
+            out = net.char_vec_fc_1(char_vector)
+            out = net.char_vec_relu_1(out)
+            out, _ = net.char_lstm_1(out.unsqueeze(0))
+            out = out.squeeze(0)
+            out = net.char_vec_fc2_1(out)
+            char_matrix = out.view([-1, 256, 256])
+            inv_char_matrix = char_matrix.inverse()
 
-                # get character matrix using same method as method beta
-                char_vector = torch.eye(len(CHARACTERS))[CHARACTERS.index(character)].to(device).unsqueeze(0)
-                out = net.char_vec_fc_1(char_vector)
-                out = net.char_vec_relu_1(out)
-                out, _ = net.char_lstm_1(out.unsqueeze(0))
-                out = out.squeeze(0)
-                out = net.char_vec_fc2_1(out)
-                char_matrix = out.view([-1, 256, 256])
-                inv_char_matrix = char_matrix.inverse()
+            # tmp = []
+            id = split_ids[0][0]
+            # for id in split_ids[0]:
+            W_c_vector = seg_W_c[0, id].squeeze()
 
-                tmp = []
-                for id in split_ids[0]:
-                    W_c_vector = seg_W_c[0, id].squeeze()
-
-                    # invert to get writer-independed DSD
-                    W_vector = torch.bmm(inv_char_matrix, W_c_vector.repeat(inv_char_matrix.size(0), 1).unsqueeze(2))
-                    tmp.append(W_vector)
-                    # all_W.append(W_vector)
-                    # all_C.append(char_matrix)
-                all_W.append(tmp)
-                all_C.append(char_matrix)
-                index = end_index
+            # invert to get writer-independed DSD
+            W_vector = torch.bmm(inv_char_matrix, W_c_vector.repeat(inv_char_matrix.size(0), 1).unsqueeze(2))
+            # tmp.append(W_vector)
+            all_W.append(W_vector)
+            # all_C.append(char_matrix)
+            # all_W.append(tmp)
+            all_C.append(char_matrix)
+            # index = end_index
+            index += 1
 
         if index == len(target_word):
             break
 
         if not available:  # method alpha
             character = target_word[index]
-            # print(f'no dic - {character}')
+            print(f'no dic - {character}')
             char_vector = torch.eye(len(CHARACTERS))[CHARACTERS.index(character)].to(device).unsqueeze(0)
             out = net.char_vec_fc_1(char_vector)
             out = net.char_vec_relu_1(out)
@@ -221,6 +231,7 @@ def get_W_and_C(net, target_word, mean_global_W, loaded_data, device):
 
 
 def get_commands(net, target_word, all_W_c):
+    """converts character-dependent style-dependent DSDs to a list of commands for drawing"""
     all_commands = []
     current_id = 0
     while True:
@@ -268,6 +279,7 @@ def get_commands(net, target_word, all_W_c):
 
 
 def sample(net, target_sentence, all_loaded_data, device="cpu"):
+    """Generates an image of handwritten text based on target_sentence"""
     words = target_sentence.split(' ')
 
     im = Image.fromarray(np.zeros([160, 750]))
@@ -280,7 +292,7 @@ def sample(net, target_sentence, all_loaded_data, device="cpu"):
         writer_mean_Ws.append(mean_global_W)
 
     for word in words:
-        all_W_c = sample_word(net, word, writer_mean_Ws, all_loaded_data, device)
+        all_W_c = get_W_c(net, word, writer_mean_Ws, all_loaded_data, device)
         all_commands = get_commands(net, word, all_W_c)
 
         for [x, y, t] in all_commands:
