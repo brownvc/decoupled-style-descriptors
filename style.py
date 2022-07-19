@@ -13,6 +13,8 @@ from tensorboardX import SummaryWriter
 from SynthesisNetwork import SynthesisNetwork
 from DataLoader import DataLoader
 
+L = 256
+
 
 def main(params):
     np.random.seed(0)
@@ -29,17 +31,24 @@ def main(params):
     dl = DataLoader(num_writer=1, num_samples=10, divider=5.0, datadir='./data/writers')
 
     writer_ids = [80, 120]
-    writer_weights = [1, 0]
+    writer_weights = [0.5, 0.5]
+
+    grid_letters = ["a", "b", "c", "d"]
+    grid_size = 10
+
     all_loaded_data = []
 
     for writer_id in writer_ids:
         loaded_data = dl.next_batch(TYPE='TRAIN', uid=writer_id, tids=[i for i in range(params.num_samples)])
         all_loaded_data.append(loaded_data)
 
-    target_word = "the quick brown fox"
-    if len(target_word) > 0:
-        im = sample(writer_weights, target_word, net, all_loaded_data, device)
-        im.convert("RGB").save(f'results/writer_120/output.png')
+    target_word = "hello"
+    # if len(target_word) > 0:
+    im = sample_blended_writers(writer_weights, target_word, net, all_loaded_data, device)
+    im.convert("RGB").save(f'results/output.png')
+
+    im = sample_character_grid(grid_letters, grid_size, net, all_loaded_data, device)
+    im.convert("RGB").save(f'results/grid.png')
 
 
 def get_mean_global_W(net, loaded_data, device):
@@ -98,37 +107,25 @@ def get_mean_global_W(net, loaded_data, device):
         return mean_global_W
 
 
-def get_writer_blend_W_c(writer_weights, all_writer_Ws, all_writer_Cs):
+def get_DSD(net, target_word, writer_mean_Ws, all_loaded_data, device):
     """
-    generates character-dependent style-dependent DSDs for each character/segement in target_word
+    returns a style vector and character matrix for each character/segment in target_word
 
     n is the number of writers
     M is the number of characters in the target word
     L is the latent vector size (in this case 256)
 
     input:
-    writer_weights, a list of length n weights for each writer that sum to one
-    all_writer_Ws, an n x M x L tensor representing each weiter's style vector for every character
-    all_writer_Cs, an n x M x L x L tensor representing the style's correspodning character matrix
+    - target_word, a string of length M to be converted to a DSD
+    - writer_mean_Ws, a list of n style vectors of size L
 
     output:
-    an M x 1 x L
+    - all_writer_Ws, a tensor of size n x M x L representing the style vectors for each writer and character 
+    - all_writer_Cs, a tensor of size n x M x L x L representing the corresponding character matrix
     """
-    n, M, L = all_writer_Ws.shape
-    weights_tensor = torch.tensor(writer_weights).repeat_interleave(M * L).reshape(n, M, L)  # repeat accross remaining dimensions
-    W_vectors = (weights_tensor * all_writer_Ws).sum(axis=0)  # take weighted sum accross writers axis
-    W_vectors = W_vectors.unsqueeze(-1)  # prepare for batch multiplication
-    char_matrices = all_writer_Cs[0, :, :, :]  # matrices are independent of writer
-
-    return torch.bmm(char_matrices, W_vectors).reshape(M, 1, L)
-
-
-def get_DSD(net, target_word, writer_mean_Ws, all_loaded_data, device):
-    """returns a style vector and character matrix for each character/segment in target_word"""
 
     n = len(all_loaded_data)
     M = len(target_word)
-    L = 256
     all_writer_Ws = torch.zeros(n, M, L)
     all_writer_Cs = torch.zeros(n, M, L, L)
 
@@ -220,6 +217,58 @@ def get_DSD(net, target_word, writer_mean_Ws, all_loaded_data, device):
     return all_writer_Ws, all_writer_Cs
 
 
+def get_writer_blend_W_c(writer_weights, all_Ws, all_Cs):
+    """
+    generates character-dependent style-dependent DSDs for each character/segement in target_word,
+    averaging together the styles of the handwritings using provided weights
+
+    n is the number of writers
+    M is the number of characters in the target word
+    L is the latent vector size (in this case 256)
+
+    input:
+    - writer_weights, a list of length n weights for each writer that sum to one
+    - all_writer_Ws, an n x M x L tensor representing each weiter's style vector for every character
+    - all_writer_Cs, an n x M x L x L tensor representing the style's correspodning character matrix
+
+    output:
+    - an M x 1 x L tensor of M scharacter-dependent style-dependent DSDs
+    """
+    n, M, _ = all_Ws.shape
+    weights_tensor = torch.tensor(writer_weights).repeat_interleave(M * L).reshape(n, M, L)  # repeat accross remaining dimensions
+    W_vectors = (weights_tensor * all_Ws).sum(axis=0).unsqueeze(-1)  # take weighted sum accross writers axis
+    char_matrices = all_Cs[0, :, :, :]  # character matrices are independent of writer
+
+    return torch.bmm(char_matrices, W_vectors).reshape(M, 1, L)
+
+
+def get_character_blend_W_c(character_weights, all_Ws, all_Cs):
+    """
+    generates a single character-dependent style-dependent DSD,
+    averaging together the characters using provided weights
+
+    M is the number of characters to blend
+    L is the latent vector size (in this case 256)
+
+    input:
+    - character_weights, a list of length M weights for each character that sum to one
+    - all_Ws, a 1 x M x L tensor representing the wwiter's style vector for each character
+    - all_Cs, 1 x M x L x L tensor representing the style's correspodning character matrix
+
+    output:
+    - a 1 x 1 x L tensor representing the character-dependent style-dependent DSDs
+    """
+    M = len(character_weights)
+    W_vector = all_Ws[0, 0, :].unsqueeze(-1)
+
+    weights_tensor = torch.tensor(character_weights).repeat_interleave(L * L).reshape(1, M, L, L)  # repeat accross remaining dimensions
+    char_matrix = (weights_tensor * all_Cs).sum(axis=1).squeeze()
+
+    W_c = char_matrix @ W_vector
+
+    return W_c.reshape(1, 1, L)
+
+
 def get_commands(net, target_word, all_W_c):
     """converts character-dependent style-dependent DSDs to a list of commands for drawing"""
     all_commands = []
@@ -268,7 +317,7 @@ def get_commands(net, target_word, all_W_c):
     return commands
 
 
-def sample(writer_weights, target_sentence, net, all_loaded_data, device="cpu"):
+def sample_blended_writers(writer_weights, target_sentence, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
     words = target_sentence.split(' ')
 
@@ -295,11 +344,52 @@ def sample(writer_weights, target_sentence, net, all_loaded_data, device="cpu"):
     return im
 
 
+def sample_character_grid(letters, grid_size, net, all_loaded_data, device="cpu"):
+    """Generates an image of handwritten text based on target_sentence"""
+    width = 50
+    im = Image.fromarray(np.zeros([(grid_size + 1) * width, (grid_size + 1) * width]))
+    dr = ImageDraw.Draw(im)
+
+    M = len(letters)
+    mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
+
+    # all_Ws = torch.zeros(1, M, L)
+    all_Cs = torch.zeros(1, M, L, L)
+    for i in range(M):  # get corners of grid
+        W_vector, char_matrix = get_DSD(net, letters[i], [mean_global_W], [all_loaded_data[0]], device)
+        # all_Ws[:, i, :] = W_vector
+        all_Cs[:, i, :, :] = char_matrix
+
+    all_Ws = mean_global_W.reshape(1, 1, L)
+
+    for i in range(grid_size):
+        for j in range(grid_size):
+            wx = i / (grid_size - 1)
+            wy = j / (grid_size - 1)
+
+            character_weights = [wx * wy, wx * (1 - wy), wy * (1 - wx), (1 - wx) * (1 - wy)]
+            all_W_c = get_character_blend_W_c(character_weights, all_Ws, all_Cs)
+            all_commands = get_commands(net, "change this later!", all_W_c)
+
+            offset_x = i * 50
+            offset_y = j * 50
+
+            for [x, y, t] in all_commands:
+                if t == 0:
+                    dr.line((
+                        px + offset_x + width/2,
+                        py + offset_y - width/2,  # letters are shifted down for some reason
+                        x + offset_x + width/2,
+                        y + offset_y - width/2), 255, 1)
+                px, py = x, y
+
+    return im
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Arguments for generating samples with the handwriting synthesis model.')
 
     parser.add_argument('--writer_id', type=int, default=80)
     parser.add_argument('--num_samples', type=int, default=10)
     parser.add_argument('--generating_default', type=int, default=0)
-    parser.add_argument('--direct_use', type=int, default=0)
     main(parser.parse_args())
