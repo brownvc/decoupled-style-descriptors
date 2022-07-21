@@ -27,7 +27,7 @@ def main(params):
 
     if not torch.cuda.is_available():
         # net.load_state_dict(torch.load('./model_original/250000.pt', map_location=torch.device('cpu')))
-        net.load_state_dict(torch.load('./model/250000.pt', map_location=torch.device('cpu'))["model_state_dict"])
+        net.load_state_dict(torch.load('./model/248000.pt', map_location=torch.device('cpu'))["model_state_dict"])
 
     dl = DataLoader(num_writer=1, num_samples=10, divider=5.0, datadir='./data/writers')
 
@@ -48,6 +48,9 @@ def main(params):
         im.convert("RGB").save(f'results/grid_{"+".join(params.grid_letters)}.png')
     elif params.task == "video":
         make_string_video(params.video_string, params.transition_time, net, all_loaded_data, device)
+    elif params.task == "mdn":
+        im = sample_mdn(params.target_word, params.max_scale, params.samples, net, all_loaded_data, device)
+        im.convert("RGB").save(f'results/mdn_{params.target_word}.png')
     else:
         print("Invalid task")
 
@@ -317,6 +320,29 @@ def get_commands(net, target_word, all_W_c):
 
     return commands
 
+def sample_mdn(target_word, max_scale, num_samples, net, all_loaded_data, device):
+    words = target_word.split(' ')
+
+    im = Image.fromarray(np.zeros([160, 750]))
+    dr = ImageDraw.Draw(im)
+    width = 50
+
+    mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
+
+    for word in words:
+        writer_Ws, writer_Cs = get_DSD(net, word, [mean_global_W], [all_loaded_data[0]], device)
+        print(writer_Ws.shape, writer_Cs.shape)
+        char_matrices = writer_Cs[0, :, :, :]
+        all_W_c = torch.bmm(char_matrices, writer_Ws)
+        all_commands = get_commands(net, word, all_W_c)
+
+        for [x, y, t] in all_commands:
+            if t == 0:
+                dr.line((px+width, py, x+width, y), 255, 1)
+            px, py = x, y
+        width += np.max(all_commands[:, 0]) + 25
+
+    return im
 
 def sample_blended_writers(writer_weights, target_sentence, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
@@ -431,9 +457,9 @@ def make_string_video(letters, transition_time, net, all_loaded_data, device="cp
             im.convert("RGB").save(f'results/{letters}_frames/frames_{str(i * transition_time + j).zfill(3)}.png')
 
     # Convert fromes to video using ffmpeg
-    photos = ffmpeg.input(f'results/{letters}_frames/frames_*.png', pattern_type='glob', framerate=24)
-    videos = photos.output(f'results/{letters}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
-    videos.run(overwrite_output=True)
+    #photos = ffmpeg.input(f'results/{letters}_frames/frames_*.png', pattern_type='glob', framerate=24)
+    #videos = photos.output(f'results/{letters}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
+    #videos.run(overwrite_output=True)
 
 
 if __name__ == '__main__':
@@ -443,8 +469,12 @@ if __name__ == '__main__':
     parser.add_argument('--num_samples', type=int, default=10)
     parser.add_argument('--generating_default', type=int, default=0)
 
-    parser.add_argument('--task', type=str, default="blend", choices=["blend", "grid", "video"])
+    parser.add_argument('--task', type=str, default="mdn", choices=["blend", "grid", "video", "mdn"])
     parser.add_argument('--target_word', type=str, default="hello")
+    
+    parser.add_argument('--max_scale', type=float, default=5) #between 0 and 1?
+    parser.add_argument('--samples', type=int, default=20)
+
     parser.add_argument('--writer_weights', type=float, nargs="+", default=[0.5, 0.5])
     parser.add_argument('--writer_ids', type=int, nargs="+", default=[80, 120])
     parser.add_argument('--grid_letters', type=str, nargs="+", default= ["x", "b", "u", "n"])

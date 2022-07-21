@@ -7,7 +7,7 @@ from helper import gaussian_2d
 from config.GlobalVariables import *
 
 class SynthesisNetwork(nn.Module):
-	def __init__(self, weight_dim=512, num_layers=3, sentence_loss=True, word_loss=True, segment_loss=True, TYPE_A=True, TYPE_B=True, TYPE_C=True, TYPE_D=True, ORIGINAL=True, REC=True):
+	def __init__(self, weight_dim=512, num_layers=3, scale_sd=0, sentence_loss=True, word_loss=True, segment_loss=True, TYPE_A=True, TYPE_B=True, TYPE_C=True, TYPE_D=True, ORIGINAL=True, REC=True):
 		super(SynthesisNetwork, self).__init__()
 		self.num_mixtures				= 20
 		self.num_layers					= num_layers
@@ -55,6 +55,7 @@ class SynthesisNetwork(nn.Module):
 		self.mdn_sigmoid				= nn.Sigmoid()
 		self.mdn_tanh					= nn.Tanh()
 		self.mdn_softmax				= nn.Softmax(dim=1)
+		self.scale_sd					= scale_sd
 
 		self.mdn_bce_loss				= nn.BCEWithLogitsLoss()
 		self.term_bce_loss				= nn.BCEWithLogitsLoss()
@@ -1604,7 +1605,7 @@ class SynthesisNetwork(nn.Module):
 			sig2 = sig2.exp() + 1e-3
 			rho = self.mdn_tanh(rho)
 			pi = self.mdn_softmax(pi)
-			mus = torch.stack([mu1, mu2], -1).squeeze()
+			mus = torch.stack([mu1+self.scale_sd*sig1, mu2+self.scale_sd*sig2], -1).squeeze()
 
 			pi = pi.cpu().detach().numpy()
 			mus = mus.cpu().detach().numpy()
