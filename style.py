@@ -12,6 +12,8 @@ from config.GlobalVariables import *
 from tensorboardX import SummaryWriter
 from SynthesisNetwork import SynthesisNetwork
 from DataLoader import DataLoader
+import ffmpeg # for problems with ffmpeg uninstall ffmpeg and then install ffmpeg-python
+import time
 
 L = 256
 
@@ -30,25 +32,25 @@ def main(params):
 
     dl = DataLoader(num_writer=1, num_samples=10, divider=5.0, datadir='./data/writers')
 
-    writer_ids = [80, 120]
-    writer_weights = [0.5, 0.5]
-
-    grid_letters = ["a", "b", "c", "d"]
-    grid_size = 10
-
     all_loaded_data = []
 
-    for writer_id in writer_ids:
+    for writer_id in params.writer_ids:
         loaded_data = dl.next_batch(TYPE='TRAIN', uid=writer_id, tids=[i for i in range(params.num_samples)])
         all_loaded_data.append(loaded_data)
 
-    target_word = "hello"
-    # if len(target_word) > 0:
-    im = sample_blended_writers(writer_weights, target_word, net, all_loaded_data, device)
-    im.convert("RGB").save(f'results/output.png')
 
-    im = sample_character_grid(grid_letters, grid_size, net, all_loaded_data, device)
-    im.convert("RGB").save(f'results/grid.png')
+    if params.task == "blend":
+        if len(params.writer_weights) != len(params.writer_ids):
+            raise ValueError("writer_ids must be same length as writer_weights")
+        im = sample_blended_writers(params.writer_weights, params.target_word, net, all_loaded_data, device)
+        im.convert("RGB").save(f'results/blend_{"+".join([str(i) for i in params.writer_ids])}.png')
+    elif params.task == "grid":
+        im = sample_character_grid(params.grid_letters, params.grid_size, net, all_loaded_data, device)
+        im.convert("RGB").save(f'results/grid_{"+".join(params.grid_letters)}.png')
+    elif params.task == "video":
+        make_string_video(params.video_string, params.transition_time, net, all_loaded_data, device)
+    else:
+        print("Invalid task")
 
 
 def get_mean_global_W(net, loaded_data, device):
@@ -386,10 +388,70 @@ def sample_character_grid(letters, grid_size, net, all_loaded_data, device="cpu"
     return im
 
 
+def make_string_video(letters, transition_time, net, all_loaded_data, device="cpu"):
+    """Generates an image of handwritten text based on target_sentence"""
+
+    
+    os.makedirs(f"./results/{letters}_frames", exist_ok=True) # make a folder for the frames
+
+    width = 50
+
+    M = len(letters)
+    mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
+
+    # all_Ws = torch.zeros(1, M, L)
+    all_Cs = torch.zeros(1, M, L, L)
+    for i in range(M):  # get corners of grid
+        W_vector, char_matrix = get_DSD(net, letters[i], [mean_global_W], [all_loaded_data[0]], device)
+        # all_Ws[:, i, :] = W_vector
+        all_Cs[:, i, :, :] = char_matrix
+
+    all_Ws = mean_global_W.reshape(1, 1, L)
+
+    for i in range(M - 1):
+        for j in range(transition_time):
+            completion = j / (transition_time - 1)
+            individual_weights = [1 - completion, completion]
+            character_weights = [0] * i + individual_weights + [0] * (M - 2 - i)
+            all_W_c = get_character_blend_W_c(character_weights, all_Ws, all_Cs)
+            all_commands = get_commands(net, "change this later!", all_W_c)
+
+            im = Image.fromarray(np.zeros([100, 100]))
+            dr = ImageDraw.Draw(im)
+
+            for [x, y, t] in all_commands:
+                if t == 0:
+                    dr.line((
+                        px + width/2,
+                        py - width/2,  # letters are shifted down for some reason
+                        x + width/2,
+                        y - width/2), 255, 1)
+                px, py = x, y
+
+                
+            im.convert("RGB").save(f'results/{letters}_frames/frames_{str(i * transition_time + j).zfill(3)}.png')
+
+    # Convert fromes to video using ffmpeg
+    photos = ffmpeg.input(f'results/{letters}_frames/frames_*.png', pattern_type='glob', framerate=24)
+    videos = photos.output(f'results/{letters}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
+    videos.run(overwrite_output=True)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Arguments for generating samples with the handwriting synthesis model.')
 
-    parser.add_argument('--writer_id', type=int, default=80)
+    # parser.add_argument('--writer_id', type=int, default=80)
     parser.add_argument('--num_samples', type=int, default=10)
     parser.add_argument('--generating_default', type=int, default=0)
+
+    parser.add_argument('--task', type=str, default="blend", choices=["blend", "grid", "video"])
+    parser.add_argument('--target_word', type=str, default="hello")
+    parser.add_argument('--writer_weights', type=float, nargs="+", default=[0.5, 0.5])
+    parser.add_argument('--writer_ids', type=int, nargs="+", default=[80, 120])
+    parser.add_argument('--grid_letters', type=str, nargs="+", default= ["x", "b", "u", "n"])
+    parser.add_argument('--grid_size', type=int, default=10)
+
+    parser.add_argument('--transition_time', type=int, default=10)
+    parser.add_argument('--video_string', type=str, default="abcdefghijklmnopqrstuvwxyz")
+   
     main(parser.parse_args())
