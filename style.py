@@ -13,7 +13,6 @@ from tensorboardX import SummaryWriter
 from SynthesisNetwork import SynthesisNetwork
 from DataLoader import DataLoader
 import ffmpeg # for problems with ffmpeg uninstall ffmpeg and then install ffmpeg-python
-import time
 
 L = 256
 
