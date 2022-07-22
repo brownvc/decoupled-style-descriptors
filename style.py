@@ -282,7 +282,7 @@ def get_commands(net, target_word, all_W_c):
 
     return commands
 
-def make_mdn_video(target_word, num_samples, max_scale, net, all_loaded_data, device):
+def mdn_video(target_word, num_samples, max_scale, net, all_loaded_data, device):
     '''
     Method creating gif of mdn samples
     num_samples: number of samples to be inputted
@@ -387,7 +387,12 @@ def sample_character_grid(letters, grid_size, net, all_loaded_data, device="cpu"
     return im
 
 def writer_interpolation_video(target_sentence, transition_time, net, all_loaded_data, device="cpu"):
-    """Generates an image of handwritten text based on target_sentence"""
+    """
+    Generates a video of interpolating between each provided writer
+    """
+
+    n = len(all_loaded_data)
+
     os.makedirs(f"./results/{target_sentence}_blend_frames", exist_ok=True)
 
     words = target_sentence.split(' ')
@@ -405,30 +410,33 @@ def writer_interpolation_video(target_sentence, transition_time, net, all_loaded
         word_Ws.append(all_writer_Ws)
         word_Cs.append(all_writer_Cs)
 
-    for i in range(transition_time):
-        im = Image.fromarray(np.zeros([160, 750]))
-        dr = ImageDraw.Draw(im)
-        width = 50
+    for i in range(n - 1):
+        for j in range(transition_time):
+            im = Image.fromarray(np.zeros([160, 750]))
+            dr = ImageDraw.Draw(im)
+            width = 50
 
-        completion = i/(transition_time)
-        writer_weights = [1-completion, completion]
+            completion = j/(transition_time)
 
-        for j, word in enumerate(words):
-            all_writer_Ws, all_writer_Cs = word_Ws[j], word_Cs[j]
-            all_W_c = get_writer_blend_W_c(writer_weights, all_writer_Ws, all_writer_Cs)
-            all_commands = get_commands(net, word, all_W_c)
+            individual_weights = [1 - completion, completion]
+            writer_weights = [0] * i + individual_weights + [0] * (n - 2 - i)
 
-            for [x, y, t] in all_commands:
-                if t == 0:
-                    dr.line((px+width, py, x+width, y), 255, 1)
-                px, py = x, y
-            width += np.max(all_commands[:, 0]) + 25
+            for k, word in enumerate(words):
+                all_writer_Ws, all_writer_Cs = word_Ws[k], word_Cs[k]
+                all_W_c = get_writer_blend_W_c(writer_weights, all_writer_Ws, all_writer_Cs)
+                all_commands = get_commands(net, word, all_W_c)
 
-        im.convert("RGB").save(f"./results/{target_sentence}_blend_frames/frame_{str(i).zfill(3)}.png")
+                for [x, y, t] in all_commands:
+                    if t == 0:
+                        dr.line((px+width, py, x+width, y), 255, 1)
+                    px, py = x, y
+                width += np.max(all_commands[:, 0]) + 25
+
+            im.convert("RGB").save(f"./results/{target_sentence}_blend_frames/frame_{str(i * transition_time + j).zfill(3)}.png")
 
     # Convert fromes to video using ffmpeg
     photos = ffmpeg.input(f"./results/{target_sentence}_blend_frames/frame_*.png", pattern_type='glob', framerate=24)
-    videos = photos.output(f"results/{target_sentence}blend_video.mov", vcodec="libx264", pix_fmt="yuv420p")
+    videos = photos.output(f"results/{target_sentence}_blend_video.mov", vcodec="libx264", pix_fmt="yuv420p")
     videos.run(overwrite_output=True)
 
 def char_interpolation_video(letters, transition_time, net, all_loaded_data, device="cpu"):
@@ -475,7 +483,7 @@ def char_interpolation_video(letters, transition_time, net, all_loaded_data, dev
             im.convert("RGB").save(f'results/{letters}_frames/frames_{str(i * transition_time + j).zfill(3)}.png')
 
     # Convert fromes to video using ffmpeg
-    photos = ffmpeg.input(f'results/{letters}_frames/frames_*.png', pattern_type='glob', framerate=24)
+    photos = ffmpeg.input(f'results/{letters}_frames/frames_*.png', pattern_type='glob', framerate=10)
     videos = photos.output(f'results/{letters}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
     videos.run(overwrite_output=True)
 

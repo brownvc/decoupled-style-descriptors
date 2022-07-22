@@ -28,7 +28,7 @@ def main(params):
     all_loaded_data = []
 
     for writer_id in params.writer_ids:
-        loaded_data = dl.next_batch(TYPE='TRAIN', uid=writer_id, tids=[i for i in range(params.num_samples)])
+        loaded_data = dl.next_batch(TYPE='TRAIN', uid=writer_id, tids=list(range(params.num_samples)))
         all_loaded_data.append(loaded_data)
 
 
@@ -45,7 +45,7 @@ def main(params):
     elif params.output == "video" and params.interpolate == "character":
         style.char_interpolation_video(params.video_chars, params.frames_per_step, net, all_loaded_data, device)
     elif params.output == "mdn":
-        style.mdn_sampling_video(params.target_word, params.num_mdn_samples, params.mdn_max_scalar, net, all_loaded_data, device)
+        style.mdn_video(params.target_word, params.num_mdn_samples, params.mdn_max_scalar, net, all_loaded_data, device)
     else:
         print("Invalid task")
 
@@ -66,11 +66,11 @@ if __name__ == '__main__':
     # IF INTERPOLATION
 
     # PARAMS FOR BOTH WRITER AND CHARACTER INTERPOLATION:
-        # IF_BLEND
+        # IF_BLEND - weights to use for a single sample of interpolation
     parser.add_argument('--blend_weights', type=float, nargs="+", default=[0.5, 0.5])
-        # IF GRID
+        # IF GRID - width and height of the grid
     parser.add_argument('--grid_size', type=int, default=10)
-        # IF VIDEO
+        # IF VIDEO - the number of frames for each character/writer
     parser.add_argument('--frames_per_step', type=int, default=10)
 
     # PARAMS IF WRITER INTERPOLATION:
