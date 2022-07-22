@@ -354,11 +354,11 @@ def sample_mdn(target_word, num_samples, max_scale, all_loaded_data, device):
             width += np.max(all_commands[:, 0]) + 25
 
         scale_val += max_scale/num_samples
-        im.convert("RGB").save(f'results/{target_word}_mdn_samples/sample_{i}_scaled_{scale_val}.png')
+        im.convert("RGB").save(f'results/{target_word}_mdn_samples/sample_{i}.png')
     # Convert fromes to video using ffmpeg
-    #photos = ffmpeg.input(f'results/{letters}_frames/frames_*.png', pattern_type='glob', framerate=24)
-    #videos = photos.output(f'results/{letters}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
-    #videos.run(overwrite_output=True)
+    photos = ffmpeg.input(f'results/{target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=24)
+    videos = photos.output(f'results/{target_word}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
+    videos.run(overwrite_output=True)
 
 def sample_blended_writers(writer_weights, target_sentence, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
