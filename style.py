@@ -1,5 +1,6 @@
 
 import os
+from random import random
 import torch
 import pickle
 import argparse
@@ -24,6 +25,7 @@ def main(params):
     device = 'cpu'
 
     net = SynthesisNetwork(weight_dim=256, num_layers=3).to(device)
+    
 
     if not torch.cuda.is_available():
         # net.load_state_dict(torch.load('./model_original/250000.pt', map_location=torch.device('cpu')))
@@ -49,8 +51,7 @@ def main(params):
     elif params.task == "video":
         make_string_video(params.video_string, params.transition_time, net, all_loaded_data, device)
     elif params.task == "mdn":
-        im = sample_mdn(params.target_word, params.max_scale, params.samples, net, all_loaded_data, device)
-        im.convert("RGB").save(f'results/mdn_{params.target_word}.png')
+        sample_mdn(params.target_word, params.samples, params.max_scale, all_loaded_data, device)
     else:
         print("Invalid task")
 
@@ -320,29 +321,44 @@ def get_commands(net, target_word, all_W_c):
 
     return commands
 
-def sample_mdn(target_word, max_scale, num_samples, net, all_loaded_data, device):
+def sample_mdn(target_word, num_samples, max_scale, all_loaded_data, device):
+    '''
+    Method creating gif of mdn samples
+    num_samples: number of samples to be inputted
+    max_scale: the maximum value used to scale SD while sampling (increment is based on num samples)
+    '''
     words = target_word.split(' ')
+    os.makedirs(f"./results/{target_word}_mdn_samples", exist_ok=True)
+    scale_val = 0
+    for i in range(0, num_samples):
+        im = Image.fromarray(np.zeros([160, 750]))
+        dr = ImageDraw.Draw(im)
+        width = 50
 
-    im = Image.fromarray(np.zeros([160, 750]))
-    dr = ImageDraw.Draw(im)
-    width = 50
+        net = SynthesisNetwork(weight_dim=256, num_layers=3, scale_sd=scale_val).to(device)
+        if not torch.cuda.is_available():
+            # net.load_state_dict(torch.load('./model_original/250000.pt', map_location=torch.device('cpu')))
+            net.load_state_dict(torch.load('./model/248000.pt', map_location=torch.device('cpu'))["model_state_dict"])
 
-    mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
+        mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
 
-    for word in words:
-        writer_Ws, writer_Cs = get_DSD(net, word, [mean_global_W], [all_loaded_data[0]], device)
-        print(writer_Ws.shape, writer_Cs.shape)
-        char_matrices = writer_Cs[0, :, :, :]
-        all_W_c = torch.bmm(char_matrices, writer_Ws)
-        all_commands = get_commands(net, word, all_W_c)
+        for word in words:
+            writer_Ws, writer_Cs = get_DSD(net, word, [mean_global_W], [all_loaded_data[0]], device)
+            all_W_c = get_writer_blend_W_c([1], writer_Ws, writer_Cs)
+            all_commands = get_commands(net, word, all_W_c)
 
-        for [x, y, t] in all_commands:
-            if t == 0:
-                dr.line((px+width, py, x+width, y), 255, 1)
-            px, py = x, y
-        width += np.max(all_commands[:, 0]) + 25
+            for [x, y, t] in all_commands:
+                if t == 0:
+                    dr.line((px+width, py, x+width, y), 255, 1)
+                px, py = x, y
+            width += np.max(all_commands[:, 0]) + 25
 
-    return im
+        scale_val += max_scale/num_samples
+        im.convert("RGB").save(f'results/{target_word}_mdn_samples/sample_{i}_scaled_{scale_val}.png')
+    # Convert fromes to video using ffmpeg
+    #photos = ffmpeg.input(f'results/{letters}_frames/frames_*.png', pattern_type='glob', framerate=24)
+    #videos = photos.output(f'results/{letters}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
+    #videos.run(overwrite_output=True)
 
 def sample_blended_writers(writer_weights, target_sentence, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
@@ -471,9 +487,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--task', type=str, default="mdn", choices=["blend", "grid", "video", "mdn"])
     parser.add_argument('--target_word', type=str, default="hello")
-    
-    parser.add_argument('--max_scale', type=float, default=5) #between 0 and 1?
-    parser.add_argument('--samples', type=int, default=20)
+
+    parser.add_argument('--max_scale', type=float, default=2.5) 
+    parser.add_argument('--samples', type=int, default=10)
 
     parser.add_argument('--writer_weights', type=float, nargs="+", default=[0.5, 0.5])
     parser.add_argument('--writer_ids', type=int, nargs="+", default=[80, 120])

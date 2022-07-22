@@ -32,16 +32,18 @@ def main(params):
         all_loaded_data.append(loaded_data)
 
 
-    if params.task == "blend":
-        if len(params.writer_weights) != len(params.writer_ids):
+    if params.output == "blend" and params.interpolate == "writer":
+        if len(params.blend_weights) != len(params.writer_ids):
             raise ValueError("writer_ids must be same length as writer_weights")
-        im = style.sample_blended_writers(params.writer_weights, params.target_word, net, all_loaded_data, device)
+        im = style.sample_blended_writers(params.blend_weights, params.target_word, net, all_loaded_data, device)
         im.convert("RGB").save(f'results/blend_{"+".join([str(i) for i in params.writer_ids])}.png')
-    elif params.task == "grid":
-        im = style.sample_character_grid(params.grid_letters, params.grid_size, net, all_loaded_data, device)
-        im.convert("RGB").save(f'results/grid_{"+".join(params.grid_letters)}.png')
-    elif params.task == "video":
-        style.make_string_video(params.video_string, params.transition_time, net, all_loaded_data, device)
+    elif params.output == "grid" and params.interpolate == "character":
+        im = style.sample_character_grid(params.grid_chars, params.grid_size, net, all_loaded_data, device)
+        im.convert("RGB").save(f'results/grid_{"+".join(params.grid_chars)}.png')
+    elif params.output == "video" and params.interpolate == "character":
+        style.make_string_video(params.video_chars, params.video_time, net, all_loaded_data, device)
+    elif params.output == "mdn":
+        style.sample_mdn(params.target_word, params.num_mdn_samples, params.mdn_max_scalar, all_loaded_data, device)
     else:
         print("Invalid task")
 
@@ -52,8 +54,14 @@ if __name__ == '__main__':
     parser.add_argument('--num_samples', type=int, default=10)
     parser.add_argument('--generating_default', type=int, default=0)
 
+    parser.add_argument('--output', type=str, default="mdn", choices=["blend", "grid", "video", "mdn"])
     parser.add_argument('--interpolate', type=str, default="writer", choices=["writer", "character"])
-    parser.add_argument('--output', type=str, default="video", choices=["blend", "grid", "video"])
+
+    # IF OUTPUT IS MDN SAMPLING (NO INTERPOLATION)
+    parser.add_argument('--mdn_max_scalar', type=float, default=2.5) 
+    parser.add_argument('--num_mdn_samples', type=int, default=10)
+
+    # IF INTERPOLATION
 
     # PARAMS FOR BOTH WRITER AND CHARACTER INTERPOLATION:
         # IF_BLEND
@@ -64,7 +72,7 @@ if __name__ == '__main__':
     parser.add_argument('--video_time', type=int, default=10)
 
     # PARAMS IF WRITER INTERPOLATION:
-    parser.add_argument('--target_word', type=str, default="hello")
+    parser.add_argument('--target_word', type=str, default="hello world")
     parser.add_argument('--writer_ids', type=int, nargs="+", default=[80, 120])
     
     # PARAMS IF CHARACTER INTERPOLATION:
@@ -75,5 +83,4 @@ if __name__ == '__main__':
         # IF VIDEO
     parser.add_argument('--video_chars', type=str, default="abcdefghijklmnopqrstuvwxyz")
 
-    
     main(parser.parse_args())
