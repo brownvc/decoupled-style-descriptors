@@ -20,8 +20,8 @@ def main(params):
     net = SynthesisNetwork(weight_dim=256, num_layers=3).to(device)
 
     if not torch.cuda.is_available():
-        # net.load_state_dict(torch.load('./model_original/250000.pt', map_location=torch.device('cpu')))
-        net.load_state_dict(torch.load('./model/248000.pt', map_location=torch.device('cpu'))["model_state_dict"])
+        net.load_state_dict(torch.load('./model/250000.pt', map_location=torch.device('cpu')))
+        # net.load_state_dict(torch.load('./model_new/250000.pt', map_location=torch.device('cpu'))["model_state_dict"])
 
     dl = DataLoader(num_writer=1, num_samples=10, divider=5.0, datadir='./data/writers')
 
@@ -32,7 +32,7 @@ def main(params):
         all_loaded_data.append(loaded_data)
 
 
-    if params.output == "blend" and params.interpolate == "writer":
+    if params.output == "image" and params.interpolate == "writer":
         if len(params.blend_weights) != len(params.writer_ids):
             raise ValueError("writer_ids must be same length as writer_weights")
         im = style.sample_blended_writers(params.blend_weights, params.target_word, net, all_loaded_data, device)
@@ -40,10 +40,12 @@ def main(params):
     elif params.output == "grid" and params.interpolate == "character":
         im = style.sample_character_grid(params.grid_chars, params.grid_size, net, all_loaded_data, device)
         im.convert("RGB").save(f'results/grid_{"+".join(params.grid_chars)}.png')
+    elif params.output == "video" and params.interpolate == "writer":
+        style.writer_interpolation_video(params.target_word, params.frames_per_step, net, all_loaded_data, device)
     elif params.output == "video" and params.interpolate == "character":
-        style.make_string_video(params.video_chars, params.video_time, net, all_loaded_data, device)
+        style.char_interpolation_video(params.video_chars, params.frames_per_step, net, all_loaded_data, device)
     elif params.output == "mdn":
-        style.sample_mdn(params.target_word, params.num_mdn_samples, params.mdn_max_scalar, all_loaded_data, device)
+        style.mdn_sampling_video(params.target_word, params.num_mdn_samples, params.mdn_max_scalar, net, all_loaded_data, device)
     else:
         print("Invalid task")
 
@@ -54,7 +56,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_samples', type=int, default=10)
     parser.add_argument('--generating_default', type=int, default=0)
 
-    parser.add_argument('--output', type=str, default="mdn", choices=["blend", "grid", "video", "mdn"])
+    parser.add_argument('--output', type=str, default="image", choices=["image", "grid", "video", "mdn"])
     parser.add_argument('--interpolate', type=str, default="writer", choices=["writer", "character"])
 
     # IF OUTPUT IS MDN SAMPLING (NO INTERPOLATION)
@@ -69,7 +71,7 @@ if __name__ == '__main__':
         # IF GRID
     parser.add_argument('--grid_size', type=int, default=10)
         # IF VIDEO
-    parser.add_argument('--video_time', type=int, default=10)
+    parser.add_argument('--frames_per_step', type=int, default=10)
 
     # PARAMS IF WRITER INTERPOLATION:
     parser.add_argument('--target_word', type=str, default="hello world")

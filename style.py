@@ -17,45 +17,6 @@ import ffmpeg # for problems with ffmpeg uninstall ffmpeg and then install ffmpe
 
 L = 256
 
-
-def main(params):
-    np.random.seed(0)
-    torch.manual_seed(0)
-
-    device = 'cpu'
-
-    net = SynthesisNetwork(weight_dim=256, num_layers=3).to(device)
-    
-
-    if not torch.cuda.is_available():
-        # net.load_state_dict(torch.load('./model_original/250000.pt', map_location=torch.device('cpu')))
-        net.load_state_dict(torch.load('./model/248000.pt', map_location=torch.device('cpu'))["model_state_dict"])
-
-    dl = DataLoader(num_writer=1, num_samples=10, divider=5.0, datadir='./data/writers')
-
-    all_loaded_data = []
-
-    for writer_id in params.writer_ids:
-        loaded_data = dl.next_batch(TYPE='TRAIN', uid=writer_id, tids=[i for i in range(params.num_samples)])
-        all_loaded_data.append(loaded_data)
-
-
-    if params.task == "blend":
-        if len(params.writer_weights) != len(params.writer_ids):
-            raise ValueError("writer_ids must be same length as writer_weights")
-        im = sample_blended_writers(params.writer_weights, params.target_word, net, all_loaded_data, device)
-        im.convert("RGB").save(f'results/blend_{"+".join([str(i) for i in params.writer_ids])}.png')
-    elif params.task == "grid":
-        im = sample_character_grid(params.grid_letters, params.grid_size, net, all_loaded_data, device)
-        im.convert("RGB").save(f'results/grid_{"+".join(params.grid_letters)}.png')
-    elif params.task == "video":
-        make_string_video(params.video_string, params.transition_time, net, all_loaded_data, device)
-    elif params.task == "mdn":
-        sample_mdn(params.target_word, params.samples, params.max_scale, all_loaded_data, device)
-    else:
-        print("Invalid task")
-
-
 def get_mean_global_W(net, loaded_data, device):
     """gets the mean global style vector for a given writer"""
     [_, _, _, _, _, _, all_word_level_stroke_in, all_word_level_stroke_out, all_word_level_stroke_length, all_word_level_term, all_word_level_char, all_word_level_char_length, all_segment_level_stroke_in, all_segment_level_stroke_out,
@@ -321,7 +282,7 @@ def get_commands(net, target_word, all_W_c):
 
     return commands
 
-def sample_mdn(target_word, num_samples, max_scale, all_loaded_data, device):
+def make_mdn_video(target_word, num_samples, max_scale, net, all_loaded_data, device):
     '''
     Method creating gif of mdn samples
     num_samples: number of samples to be inputted
@@ -335,10 +296,7 @@ def sample_mdn(target_word, num_samples, max_scale, all_loaded_data, device):
         dr = ImageDraw.Draw(im)
         width = 50
 
-        net = SynthesisNetwork(weight_dim=256, num_layers=3, scale_sd=scale_val).to(device)
-        if not torch.cuda.is_available():
-            # net.load_state_dict(torch.load('./model_original/250000.pt', map_location=torch.device('cpu')))
-            net.load_state_dict(torch.load('./model/248000.pt', map_location=torch.device('cpu'))["model_state_dict"])
+        net.scale_sd = scale_val
 
         mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
 
@@ -356,7 +314,7 @@ def sample_mdn(target_word, num_samples, max_scale, all_loaded_data, device):
         scale_val += max_scale/num_samples
         im.convert("RGB").save(f'results/{target_word}_mdn_samples/sample_{i}.png')
     # Convert fromes to video using ffmpeg
-    photos = ffmpeg.input(f'results/{target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=24)
+    photos = ffmpeg.input(f'results/{target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=10)
     videos = photos.output(f'results/{target_word}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
     videos.run(overwrite_output=True)
 
@@ -428,8 +386,52 @@ def sample_character_grid(letters, grid_size, net, all_loaded_data, device="cpu"
 
     return im
 
+def writer_interpolation_video(target_sentence, transition_time, net, all_loaded_data, device="cpu"):
+    """Generates an image of handwritten text based on target_sentence"""
+    os.makedirs(f"./results/{target_sentence}_blend_frames", exist_ok=True)
 
-def make_string_video(letters, transition_time, net, all_loaded_data, device="cpu"):
+    words = target_sentence.split(' ')
+
+    writer_mean_Ws = []
+    for loaded_data in all_loaded_data:
+        mean_global_W = get_mean_global_W(net, loaded_data, device)
+        writer_mean_Ws.append(mean_global_W)
+
+    word_Ws = []
+    word_Cs = []
+
+    for word in words:
+        all_writer_Ws, all_writer_Cs = get_DSD(net, word, writer_mean_Ws, all_loaded_data, device)
+        word_Ws.append(all_writer_Ws)
+        word_Cs.append(all_writer_Cs)
+
+    for i in range(transition_time):
+        im = Image.fromarray(np.zeros([160, 750]))
+        dr = ImageDraw.Draw(im)
+        width = 50
+
+        completion = i/(transition_time)
+        writer_weights = [1-completion, completion]
+
+        for j, word in enumerate(words):
+            all_writer_Ws, all_writer_Cs = word_Ws[j], word_Cs[j]
+            all_W_c = get_writer_blend_W_c(writer_weights, all_writer_Ws, all_writer_Cs)
+            all_commands = get_commands(net, word, all_W_c)
+
+            for [x, y, t] in all_commands:
+                if t == 0:
+                    dr.line((px+width, py, x+width, y), 255, 1)
+                px, py = x, y
+            width += np.max(all_commands[:, 0]) + 25
+
+        im.convert("RGB").save(f"./results/{target_sentence}_blend_frames/frame_{str(i).zfill(3)}.png")
+
+    # Convert fromes to video using ffmpeg
+    photos = ffmpeg.input(f"./results/{target_sentence}_blend_frames/frame_*.png", pattern_type='glob', framerate=24)
+    videos = photos.output(f"results/{target_sentence}blend_video.mov", vcodec="libx264", pix_fmt="yuv420p")
+    videos.run(overwrite_output=True)
+
+def char_interpolation_video(letters, transition_time, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
 
     
@@ -473,30 +475,8 @@ def make_string_video(letters, transition_time, net, all_loaded_data, device="cp
             im.convert("RGB").save(f'results/{letters}_frames/frames_{str(i * transition_time + j).zfill(3)}.png')
 
     # Convert fromes to video using ffmpeg
-    #photos = ffmpeg.input(f'results/{letters}_frames/frames_*.png', pattern_type='glob', framerate=24)
-    #videos = photos.output(f'results/{letters}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
-    #videos.run(overwrite_output=True)
+    photos = ffmpeg.input(f'results/{letters}_frames/frames_*.png', pattern_type='glob', framerate=24)
+    videos = photos.output(f'results/{letters}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
+    videos.run(overwrite_output=True)
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Arguments for generating samples with the handwriting synthesis model.')
-
-    # parser.add_argument('--writer_id', type=int, default=80)
-    parser.add_argument('--num_samples', type=int, default=10)
-    parser.add_argument('--generating_default', type=int, default=0)
-
-    parser.add_argument('--task', type=str, default="mdn", choices=["blend", "grid", "video", "mdn"])
-    parser.add_argument('--target_word', type=str, default="hello")
-
-    parser.add_argument('--max_scale', type=float, default=2.5) 
-    parser.add_argument('--samples', type=int, default=10)
-
-    parser.add_argument('--writer_weights', type=float, nargs="+", default=[0.5, 0.5])
-    parser.add_argument('--writer_ids', type=int, nargs="+", default=[80, 120])
-    parser.add_argument('--grid_letters', type=str, nargs="+", default= ["x", "b", "u", "n"])
-    parser.add_argument('--grid_size', type=int, default=10)
-
-    parser.add_argument('--transition_time', type=int, default=10)
-    parser.add_argument('--video_string', type=str, default="abcdefghijklmnopqrstuvwxyz")
-   
-    main(parser.parse_args())
