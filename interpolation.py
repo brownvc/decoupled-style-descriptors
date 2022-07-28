@@ -34,7 +34,7 @@ def main(params):
 
     if params.output == "image" and params.interpolate == "writer":
         if len(params.blend_weights) != len(params.writer_ids):
-            raise ValueError("writer_ids must be same length as writer_weights")writer_ids must be same length as writer_weights")
+            raise ValueError("writer_ids must be same length as writer_weights")
         im = style.sample_blended_writers(params.blend_weights, params.target_word, net, all_loaded_data, device)
         im.convert("RGB").save(f'results/blend_{"+".join([str(i) for i in params.writer_ids])}.png')
     elif params.output == "grid" and params.interpolate == "character":
@@ -45,7 +45,7 @@ def main(params):
     elif params.output == "video" and params.interpolate == "writer":
         style.writer_interpolation_video(params.target_word, params.frames_per_step, net, all_loaded_data, device)
     elif params.output == "video" and params.interpolate == "character":
-        style.char_interpolation_video(params.grid_chars, params.frames_per_step, net, all_loaded_data, device)
+        style.char_interpolation_video(params.blend_chars, params.frames_per_step, net, all_loaded_data, device)
     elif params.interpolate == "randomness":
         style.mdn_video(params.target_word, params.num_mdn_samples, params.mdn_max_scalar, net, all_loaded_data, device)
     else:

@@ -435,15 +435,16 @@ def writer_interpolation_video(target_sentence, transition_time, net, all_loaded
             im.convert("RGB").save(f"./results/{target_sentence}_blend_frames/frame_{str(i * transition_time + j).zfill(3)}.png")
 
     # Convert fromes to video using ffmpeg
-    photos = ffmpeg.input(f"./results/{target_sentence}_blend_frames/frame_*.png", pattern_type='glob', framerate=24)
+    photos = ffmpeg.input(f"./results/{target_sentence}_blend_frames/frame_*.png", pattern_type='glob', framerate=10, loop=True)
     videos = photos.output(f"results/{target_sentence}_blend_video.mov", vcodec="libx264", pix_fmt="yuv420p")
+    # videos = photos.output(f"results/{target_sentence}_blend_video.gif")
     videos.run(overwrite_output=True)
 
 def char_interpolation_video(letters, transition_time, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
 
     
-    os.makedirs(f"./results/{letters}_frames", exist_ok=True) # make a folder for the frames
+    os.makedirs(f"./results/{''.join(letters)}_frames", exist_ok=True) # make a folder for the frames
 
     width = 50
 
@@ -480,11 +481,12 @@ def char_interpolation_video(letters, transition_time, net, all_loaded_data, dev
                 px, py = x, y
 
                 
-            im.convert("RGB").save(f'results/{letters}_frames/frames_{str(i * transition_time + j).zfill(3)}.png')
+            im.convert("RGB").save(f"results/{''.join(letters)}_frames/frames_{str(i * transition_time + j).zfill(3)}.png")
 
     # Convert fromes to video using ffmpeg
-    photos = ffmpeg.input(f'results/{letters}_frames/frames_*.png', pattern_type='glob', framerate=10)
+    photos = ffmpeg.input(f"results/{''.join(letters)}_frames/frames_*.png", pattern_type='glob', framerate=24)
     videos = photos.output(f'results/{letters}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
+    # videos = photos.output(f"results/{''.join(letters)}_video.gif")
     videos.run(overwrite_output=True)
 
 

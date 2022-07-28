@@ -70,6 +70,20 @@ How much to weight each of the writers (typically summing to 1)
 
 In addition, we have provided some convenience functions in `style.py` that can be used to extract the style/character information as well as recombine them into the desired image or video.
 
+# Example Interpolations:
+
+Writer interpolation between writers 80 and 120:
+
+![Writer interpolation](example_outputs/interpolate_writer.gif)
+
+Grid with corners x, b, u, n:
+
+![Character grid](example_outputs/grid_xbun.png)
+
+Character interpolation between the first few letters of the alphabet:
+
+![Character grid](example_outputs/interpolate_abcde.gif)
+
 # Insights
 
 The current model, as published at ECCV 2020 and for consistency with it, does not include a supervised character loss.
