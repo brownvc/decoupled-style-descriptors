@@ -34,20 +34,22 @@ def main(params):
 
     if params.output == "image" and params.interpolate == "writer":
         if len(params.blend_weights) != len(params.writer_ids):
-            raise ValueError("writer_ids must be same length as writer_weights")
+            raise ValueError("writer_ids must be same length as writer_weights")writer_ids must be same length as writer_weights")
         im = style.sample_blended_writers(params.blend_weights, params.target_word, net, all_loaded_data, device)
         im.convert("RGB").save(f'results/blend_{"+".join([str(i) for i in params.writer_ids])}.png')
     elif params.output == "grid" and params.interpolate == "character":
+        if len(params.grid) != 4:
+            raise ValueError("grid_chars must be given exactly four characters")
         im = style.sample_character_grid(params.grid_chars, params.grid_size, net, all_loaded_data, device)
         im.convert("RGB").save(f'results/grid_{"+".join(params.grid_chars)}.png')
     elif params.output == "video" and params.interpolate == "writer":
         style.writer_interpolation_video(params.target_word, params.frames_per_step, net, all_loaded_data, device)
     elif params.output == "video" and params.interpolate == "character":
-        style.char_interpolation_video(params.video_chars, params.frames_per_step, net, all_loaded_data, device)
-    elif params.output == "mdn":
+        style.char_interpolation_video(params.grid_chars, params.frames_per_step, net, all_loaded_data, device)
+    elif params.interpolate == "randomness":
         style.mdn_video(params.target_word, params.num_mdn_samples, params.mdn_max_scalar, net, all_loaded_data, device)
     else:
-        print("Invalid task")
+        raise ValueError("Invalid task")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Arguments for generating samples with the handwriting synthesis model.')
@@ -68,8 +70,6 @@ if __name__ == '__main__':
     # PARAMS FOR BOTH WRITER AND CHARACTER INTERPOLATION:
         # IF_BLEND - weights to use for a single sample of interpolation
     parser.add_argument('--blend_weights', type=float, nargs="+", default=[0.5, 0.5])
-        # IF GRID - width and height of the grid
-    parser.add_argument('--grid_size', type=int, default=10)
         # IF VIDEO - the number of frames for each character/writer
     parser.add_argument('--frames_per_step', type=int, default=10)
 
@@ -78,11 +78,10 @@ if __name__ == '__main__':
     parser.add_argument('--writer_ids', type=int, nargs="+", default=[80, 120])
     
     # PARAMS IF CHARACTER INTERPOLATION:
-        # IF BLEND
-    parser.add_argument('--blend_chars', type=str, nargs="+", default = ["u", "g"])
+        # IF VIDEO OR BLEND
+    parser.add_argument('--blend_chars', type=str, nargs="+", default = ["a", "b", "c", "d", "e"])
         # IF GRID
     parser.add_argument('--grid_chars', type=str, nargs="+", default= ["x", "b", "u", "n"])
-        # IF VIDEO
-    parser.add_argument('--video_chars', type=str, default="abcdefghijklmnopqrstuvwxyz")
+    parser.add_argument('--grid_size', type=int, default=10)
 
     main(parser.parse_args())
