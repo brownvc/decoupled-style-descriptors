@@ -78,7 +78,7 @@ Writer interpolation between writers 80 and 120:
 
 Grid with corners x, b, u, n:
 
-![Character grid](example_outputs/grid_xbun.png)
+![Character grid](example_outputs/grid_xbun.jpeg)
 
 Character interpolation between the first few letters of the alphabet:
 
