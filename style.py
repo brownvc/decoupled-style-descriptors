@@ -290,13 +290,12 @@ def mdn_video(target_word, num_samples, max_scale, net, all_loaded_data, device)
     '''
     words = target_word.split(' ')
     os.makedirs(f"./results/{target_word}_mdn_samples", exist_ok=True)
-    scale_val = 0
     for i in range(0, num_samples):
         im = Image.fromarray(np.zeros([160, 750]))
         dr = ImageDraw.Draw(im)
         width = 50
 
-        net.scale_sd = scale_val
+        net.scale_sd = max_scale
 
         mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
 
@@ -311,7 +310,6 @@ def mdn_video(target_word, num_samples, max_scale, net, all_loaded_data, device)
                 px, py = x, y
             width += np.max(all_commands[:, 0]) + 25
 
-        scale_val += max_scale/num_samples
         im.convert("RGB").save(f'results/{target_word}_mdn_samples/sample_{i}.png')
     # Convert fromes to video using ffmpeg
     photos = ffmpeg.input(f'results/{target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=10)

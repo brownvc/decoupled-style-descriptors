@@ -47,7 +47,7 @@ def main(params):
     elif params.output == "video" and params.interpolate == "character":
         style.char_interpolation_video(params.blend_chars, params.frames_per_step, net, all_loaded_data, device)
     elif params.interpolate == "randomness":
-        style.mdn_video(params.target_word, params.num_mdn_samples, params.mdn_max_scalar, net, all_loaded_data, device)
+        style.mdn_video(params.target_word, params.num_mdn_samples, params.mdn_randomness, net, all_loaded_data, device)
     else:
         raise ValueError("Invalid task")
 
@@ -58,17 +58,11 @@ if __name__ == '__main__':
     parser.add_argument('--num_samples', type=int, default=10)
     parser.add_argument('--generating_default', type=int, default=0)
 
-    parser.add_argument('--output', type=str, default="image", choices=["image", "grid", "video", "mdn"])
-    parser.add_argument('--interpolate', type=str, default="writer", choices=["writer", "character"])
-
-    # IF OUTPUT IS MDN SAMPLING (NO INTERPOLATION)
-    parser.add_argument('--mdn_max_scalar', type=float, default=2.5) 
-    parser.add_argument('--num_mdn_samples', type=int, default=10)
-
-    # IF INTERPOLATION
+    parser.add_argument('--output', type=str, default="image", choices=["image", "grid", "video"])
+    parser.add_argument('--interpolate', type=str, default="randomness", choices=["writer", "character", "randomness"])
 
     # PARAMS FOR BOTH WRITER AND CHARACTER INTERPOLATION:
-        # IF_BLEND - weights to use for a single sample of interpolation
+        # IF IMAGE - weights to use for a single sample of interpolation
     parser.add_argument('--blend_weights', type=float, nargs="+", default=[0.5, 0.5])
         # IF VIDEO - the number of frames for each character/writer
     parser.add_argument('--frames_per_step', type=int, default=10)
@@ -83,5 +77,9 @@ if __name__ == '__main__':
         # IF GRID
     parser.add_argument('--grid_chars', type=str, nargs="+", default= ["x", "b", "u", "n"])
     parser.add_argument('--grid_size', type=int, default=10)
+
+    # PARAMS IF RANDOMNESS ITERPOLATION (--output will be ignored):
+    parser.add_argument('--mdn_randomness', type=float, default=0.5) 
+    parser.add_argument('--num_mdn_samples', type=int, default=10)
 
     main(parser.parse_args())
