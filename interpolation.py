@@ -38,7 +38,7 @@ def main(params):
         im = style.sample_blended_writers(params.blend_weights, params.target_word, net, all_loaded_data, device)
         im.convert("RGB").save(f'results/blend_{"+".join([str(i) for i in params.writer_ids])}.png')
     elif params.output == "grid" and params.interpolate == "character":
-        if len(params.grid) != 4:
+        if len(params.grid_chars) != 4:
             raise ValueError("grid_chars must be given exactly four characters")
         im = style.sample_character_grid(params.grid_chars, params.grid_size, net, all_loaded_data, device)
         im.convert("RGB").save(f'results/grid_{"+".join(params.grid_chars)}.png')
