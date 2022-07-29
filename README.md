@@ -72,15 +72,27 @@ In addition, we have provided some convenience functions in `style.py` that can 
 
 # Example Interpolations:
 
-Writer interpolation between writers 80 and 120:
+A video interpolation between writers 80 and 120 generated with the following command:
+
+```
+python interpolation.py --interpolate writer --output video --writer_ids 80 120 --target_word "hello world"
+```
 
 ![Writer interpolation](example_outputs/interpolate_writer.gif)
 
-Grid with corners x, b, u, n:
+A grid that interpolates bilinearly between four letters, one at each corner can be generated with the following command:
+
+```
+python interpolation.py --interpolate character --output grid  --grid_chars x b u n
+```
 
 ![Character grid](example_outputs/grid_xbun.jpeg)
 
 Character interpolation between the first few letters of the alphabet:
+
+```
+python3 interpolation.py --interpolate character --output video --blend_chars a b c d e
+```
 
 ![Character grid](example_outputs/interpolate_abcde.gif)
 
