@@ -68,6 +68,12 @@ A list of (0 to 169) representing the ids of writer styles to use
 `--writer_weights`:
 How much to weight each of the writers (typically summing to 1)
 
+`--max_randomness`:
+Adjusts the maximum amount of randomness allowed (clamps the MDN sampling at a percent of the distribution)
+
+`--scale_randomness`:
+Adjusts scale of the randomness allowed (scales the standard deviations of MDN sampling)
+
 In addition, we have provided some convenience functions in `style.py` that can be used to extract the style/character information as well as recombine them into the desired image or video.
 
 # Example Interpolations:

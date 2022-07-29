@@ -47,6 +47,8 @@ def main(params):
     elif params.output == "video" and params.interpolate == "character":
         convenience.char_interpolation_video(params.blend_chars, params.frames_per_step, net, all_loaded_data, device)
     elif params.interpolate == "randomness":
+        if not 0 <= params.max_randomness <= 1:
+            raise ValueError("max_randomness must be between 0 and 1")
         convenience.mdn_video(params.target_word, params.num_mdn_samples, params.scale_randomness, params.max_randomness, net, all_loaded_data, device)
     else:
         raise ValueError("Invalid task")
