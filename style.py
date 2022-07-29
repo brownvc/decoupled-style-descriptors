@@ -356,7 +356,7 @@ def sample_mdn(target_word, num_samples, max_scale, all_loaded_data, device):
         scale_val += max_scale/num_samples
         im.convert("RGB").save(f'results/{target_word}_mdn_samples/sample_{i}.png')
     # Convert fromes to video using ffmpeg
-    photos = ffmpeg.input(f'results/{target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=24)
+    photos = ffmpeg.input(f'results/{target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=5)
     videos = photos.output(f'results/{target_word}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
     videos.run(overwrite_output=True)
 
