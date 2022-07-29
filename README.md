@@ -78,6 +78,8 @@ A video interpolation between writers 80 and 120 generated with the following co
 python interpolation.py --interpolate writer --output video --writer_ids 80 120 --target_word "hello world"
 ```
 
+Result
+
 ![Writer interpolation](example_outputs/interpolate_writer.gif)
 
 A grid that interpolates bilinearly between four letters, one at each corner can be generated with the following command:
@@ -85,6 +87,8 @@ A grid that interpolates bilinearly between four letters, one at each corner can
 ```
 python interpolation.py --interpolate character --output grid  --grid_chars x b u n
 ```
+
+Result:
 
 ![Character grid](example_outputs/grid_xbun.jpeg)
 
@@ -94,6 +98,7 @@ Character interpolation between the first few letters of the alphabet:
 python3 interpolation.py --interpolate character --output video --blend_chars a b c d e
 ```
 
+Result:
 ![Character grid](example_outputs/interpolate_abcde.gif)
 
 # Insights

@@ -6,5 +6,5 @@ six==1.16.0
 tensorboardX==2.5
 torch==1.11.0
 typing_extensions==4.1.1
-ffmpeg-python==0.18.2
+ffmpeg-python
 
