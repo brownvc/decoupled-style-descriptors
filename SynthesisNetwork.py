@@ -1,3 +1,4 @@
+from importlib.metadata import distribution
 import torch
 import torch.nn as nn
 from torch.distributions import MultivariateNormal
@@ -7,7 +8,7 @@ from helper import gaussian_2d
 from config.GlobalVariables import *
 
 class SynthesisNetwork(nn.Module):
-	def __init__(self, weight_dim=512, num_layers=3, scale_sd=0, sentence_loss=True, word_loss=True, segment_loss=True, TYPE_A=True, TYPE_B=True, TYPE_C=True, TYPE_D=True, ORIGINAL=True, REC=True):
+	def __init__(self, weight_dim=512, num_layers=3, scale_sd=1, clamp_mdn=1, sentence_loss=True, word_loss=True, segment_loss=True, TYPE_A=True, TYPE_B=True, TYPE_C=True, TYPE_D=True, ORIGINAL=True, REC=True):
 		super(SynthesisNetwork, self).__init__()
 		self.num_mixtures				= 20
 		self.num_layers					= num_layers
@@ -55,7 +56,8 @@ class SynthesisNetwork(nn.Module):
 		self.mdn_sigmoid				= nn.Sigmoid()
 		self.mdn_tanh					= nn.Tanh()
 		self.mdn_softmax				= nn.Softmax(dim=1)
-		self.scale_sd					= scale_sd
+		self.scale_sd					= scale_sd # how much to scale the standard deviation of the gaussians
+		self.clamp_mdn					= clamp_mdn # total percent of disrubution to allow sampling from
 
 		self.mdn_bce_loss				= nn.BCEWithLogitsLoss()
 		self.term_bce_loss				= nn.BCEWithLogitsLoss()
@@ -1605,10 +1607,17 @@ class SynthesisNetwork(nn.Module):
 			sig2 = sig2.exp() + 1e-3
 			rho = self.mdn_tanh(rho)
 			pi = self.mdn_softmax(pi)
-			rand1 = torch.normal(mu1, sig1*self.scale_sd)
-			rand2 = torch.normal(mu2, sig2*self.scale_sd)
-			mus = torch.stack([rand1, rand2], -1).squeeze()
-			#mus = torch.stack([mu1+self.scale_sd*sig1, mu2+self.scale_sd*sig2], -1).squeeze()
+
+			mus = torch.stack([mu1, mu2], -1).squeeze()
+			sigs = torch.stack([sig1, sig2], -1).squeeze() * self.scale_sd
+
+			distribution = torch.distributions.normal.Normal(loc=mus, scale=sigs)
+			sample = distribution.sample()
+			
+			min_clamp = distribution.icdf(0.5 - torch.ones_like(mus) * self.clamp_mdn/2)
+			max_clamp = distribution.icdf(0.5 + torch.ones_like(mus) * self.clamp_mdn/2)
+			
+			sample = sample.clamp(min=min_clamp, max=max_clamp)
 
 			pi = pi.cpu().detach().numpy()
 			mus = mus.cpu().detach().numpy()
@@ -1616,8 +1625,10 @@ class SynthesisNetwork(nn.Module):
 			eos = eos.cpu().detach().numpy()[0]
 			term = term.cpu().detach().numpy()[0][0]
 
+			sample = sample.cpu().detach().numpy()
+
 			terms.append(term)
-			[dx, dy] = np.sum(pi.reshape(20, 1) * mus, 0)
+			[dx, dy] = np.sum(pi.reshape(20, 1) * sample, 0)
 			touch = 1 if eos > 0.5 else 0
 
 			if new_char and touch == 1:

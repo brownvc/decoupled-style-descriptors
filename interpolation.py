@@ -47,7 +47,7 @@ def main(params):
     elif params.output == "video" and params.interpolate == "character":
         style.char_interpolation_video(params.blend_chars, params.frames_per_step, net, all_loaded_data, device)
     elif params.interpolate == "randomness":
-        style.mdn_video(params.target_word, params.num_mdn_samples, params.mdn_randomness, net, all_loaded_data, device)
+        style.mdn_video(params.target_word, params.num_mdn_samples, params.scale_randomness, params.max_randomness, net, all_loaded_data, device)
     else:
         raise ValueError("Invalid task")
 
@@ -79,7 +79,8 @@ if __name__ == '__main__':
     parser.add_argument('--grid_size', type=int, default=10)
 
     # PARAMS IF RANDOMNESS ITERPOLATION (--output will be ignored):
-    parser.add_argument('--mdn_randomness', type=float, default=0.5) 
+    parser.add_argument('--max_randomness', type=float, default=1) 
+    parser.add_argument('--scale_randomness', type=float, default=0.5) 
     parser.add_argument('--num_mdn_samples', type=int, default=10)
 
     main(parser.parse_args())

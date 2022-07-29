@@ -282,7 +282,7 @@ def get_commands(net, target_word, all_W_c):
 
     return commands
 
-def mdn_video(target_word, num_samples, max_scale, net, all_loaded_data, device):
+def mdn_video(target_word, num_samples, scale_sd, clamp_mdn, net, all_loaded_data, device):
     '''
     Method creating gif of mdn samples
     num_samples: number of samples to be inputted
@@ -295,7 +295,8 @@ def mdn_video(target_word, num_samples, max_scale, net, all_loaded_data, device)
         dr = ImageDraw.Draw(im)
         width = 50
 
-        net.scale_sd = max_scale
+        net.scale_sd = scale_sd
+        net.clamp_mdn = clamp_mdn
 
         mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
 
