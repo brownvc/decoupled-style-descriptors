@@ -1605,7 +1605,10 @@ class SynthesisNetwork(nn.Module):
 			sig2 = sig2.exp() + 1e-3
 			rho = self.mdn_tanh(rho)
 			pi = self.mdn_softmax(pi)
-			mus = torch.stack([mu1+self.scale_sd*sig1, mu2+self.scale_sd*sig2], -1).squeeze()
+			rand1 = torch.normal(mu1, sig1*self.scale_sd)
+			rand2 = torch.normal(mu2, sig2*self.scale_sd)
+			mus = torch.stack([rand1, rand2], -1).squeeze()
+			#mus = torch.stack([mu1+self.scale_sd*sig1, mu2+self.scale_sd*sig2], -1).squeeze()
 
 			pi = pi.cpu().detach().numpy()
 			mus = mus.cpu().detach().numpy()
