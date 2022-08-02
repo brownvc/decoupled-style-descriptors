@@ -346,7 +346,7 @@ def sample_blended_writers(writer_weights, target_sentence, net, all_loaded_data
 
 def sample_character_grid(letters, grid_size, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
-    width = 50
+    width = 60
     im = Image.fromarray(np.zeros([(grid_size + 1) * width, (grid_size + 1) * width]))
     dr = ImageDraw.Draw(im)
 
@@ -367,12 +367,15 @@ def sample_character_grid(letters, grid_size, net, all_loaded_data, device="cpu"
             wx = i / (grid_size - 1)
             wy = j / (grid_size - 1)
 
-            character_weights = [wx * wy, wx * (1 - wy), wy * (1 - wx), (1 - wx) * (1 - wy)]
+            character_weights = [(1 - wx) * (1 - wy), # top left is 1 at (0, 0)
+                                 wx       * (1 - wy), # top right is 1  at (1, 0)
+                                 (1 - wx) * wy,       # bottom left is 1 at (0, 1)
+                                 wx       * wy]       # bottom right is 1 at (1, 1)
             all_W_c = get_character_blend_W_c(character_weights, all_Ws, all_Cs)
             all_commands = get_commands(net, "change this later!", all_W_c)
 
-            offset_x = i * 50
-            offset_y = j * 50
+            offset_x = i * width
+            offset_y = j * width
 
             for [x, y, t] in all_commands:
                 if t == 0:

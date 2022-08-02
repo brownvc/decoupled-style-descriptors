@@ -21,7 +21,10 @@ def main(params):
 	net	= SynthesisNetwork(weight_dim=256, num_layers=3).to(device)
 
 	if not torch.cuda.is_available():
-		net.load_state_dict(torch.load('./model/248000.pt', map_location=torch.device('cpu'))["model_state_dict"])
+		try: # retrained model also contains loss in dict 
+			net.load_state_dict(torch.load('./model/250000.pt', map_location=torch.device('cpu'))["model_state_dict"])
+		except:
+			net.load_state_dict(torch.load('./model/250000.pt', map_location=torch.device('cpu')))
 
 	[_, _, _, _, _, _, all_word_level_stroke_in, all_word_level_stroke_out, all_word_level_stroke_length, all_word_level_term, all_word_level_char, all_word_level_char_length, all_segment_level_stroke_in, all_segment_level_stroke_out, all_segment_level_stroke_length, all_segment_level_term,all_segment_level_char, all_segment_level_char_length] = dl.next_batch(TYPE='TRAIN', uid=params.writer_id, tids=[i for i in range(params.num_samples)])
 

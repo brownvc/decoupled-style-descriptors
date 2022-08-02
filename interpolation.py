@@ -20,8 +20,11 @@ def main(params):
     net = SynthesisNetwork(weight_dim=256, num_layers=3).to(device)
 
     if not torch.cuda.is_available():
-        net.load_state_dict(torch.load('./model/250000.pt', map_location=torch.device('cpu')))
-        # net.load_state_dict(torch.load('./model_new/250000.pt', map_location=torch.device('cpu'))["model_state_dict"])
+        try: # retrained model also contains loss in dict 
+            net.load_state_dict(torch.load('./model/250000.pt', map_location=torch.device('cpu'))["model_state_dict"])
+        except:
+            net.load_state_dict(torch.load('./model/250000.pt', map_location=torch.device('cpu')))
+        
 
     dl = DataLoader(num_writer=1, num_samples=10, divider=5.0, datadir='./data/writers')
 
@@ -41,7 +44,7 @@ def main(params):
         if len(params.grid_chars) != 4:
             raise ValueError("grid_chars must be given exactly four characters")
         im = convenience.sample_character_grid(params.grid_chars, params.grid_size, net, all_loaded_data, device)
-        im.convert("RGB").save(f'results/grid_{"+".join(params.grid_chars)}.png')
+        im.convert("RGB").save(f'results/grid_{"".join(params.grid_chars)}.png')
     elif params.output == "video" and params.interpolate == "writer":
         convenience.writer_interpolation_video(params.target_word, params.frames_per_step, net, all_loaded_data, device)
     elif params.output == "video" and params.interpolate == "character":

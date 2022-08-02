@@ -91,12 +91,12 @@ Result
 A grid that interpolates bilinearly between four letters, one at each corner can be generated with the following command:
 
 ```
-python interpolation.py --interpolate character --output grid  --grid_chars x b u n
+python interpolation.py --interpolate character --output grid  --grid_chars y s u n
 ```
 
 Result:
 
-![Character grid](example_outputs/grid_xbun.jpeg)
+![Character grid](example_outputs/grid_ysun.jpeg)
 
 Character interpolation between the first few letters of the alphabet:
 
