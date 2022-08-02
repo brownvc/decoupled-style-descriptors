@@ -52,7 +52,7 @@ def main(params):
     elif params.interpolate == "randomness":
         if not 0 <= params.max_randomness <= 1:
             raise ValueError("max_randomness must be between 0 and 1")
-        convenience.mdn_video(params.target_word, params.num_mdn_samples, params.scale_randomness, params.max_randomness, net, all_loaded_data, device)
+        convenience.mdn_video(params.target_word, params.num_random_samples, params.scale_randomness, params.max_randomness, net, all_loaded_data, device)
     else:
         raise ValueError("Invalid task")
 
@@ -86,6 +86,6 @@ if __name__ == '__main__':
     # PARAMS IF RANDOMNESS ITERPOLATION (--output will be ignored):
     parser.add_argument('--max_randomness', type=float, default=1) 
     parser.add_argument('--scale_randomness', type=float, default=0.5) 
-    parser.add_argument('--num_mdn_samples', type=int, default=10)
+    parser.add_argument('--num_random_samples', type=int, default=10)
 
     main(parser.parse_args())

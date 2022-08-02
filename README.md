@@ -63,16 +63,19 @@ The program can output a video of the interpolation, a single image, or a grid o
 To specify the word used for interpolation, a list of characters to be interpolated, or the characters at the corners of the grid, use `--target_word`, `--blend_chars`, or `--grid_chars` respectively.
 
 `--writer_ids`:
-A list of (0 to 169) representing the ids of writer styles to use
+A list of (0 to 169) representing the ids of writer styles to use. If `--interpolation` is not set to `writer`, the first writer id provided will be used.
 
-`--writer_weights`:
+`--blend_weights`:
 How much to weight each of the writers (typically summing to 1)
 
-`--max_randomness`:
+`--max_randomness` (for when `--interpolation=randomness`):
 Adjusts the maximum amount of randomness allowed (clamps the MDN sampling at a percent of the distribution)
 
-`--scale_randomness`:
+`--scale_randomness` (for when `--interpolation=randomness`)::
 Adjusts scale of the randomness allowed (scales the standard deviations of MDN sampling)
+
+`--num_random_samples` (for when `--interpolation=randomness`)::
+Number of random samples to take, each will be a single frame of the outputted video
 
 In addition, we have provided some convenience functions in `style.py` that can be used to extract the style/character information as well as recombine them into the desired image or video.
 
@@ -105,7 +108,16 @@ python3 interpolation.py --interpolate character --output video --blend_chars a 
 ```
 
 Result:
+
 ![Character grid](example_outputs/interpolate_abcde.gif)
+
+```
+python interpolation.py --output video --interpolate randomness --scale_randomness 1 --max_randomness 1 --num_samples 10
+```
+
+Result:
+
+![Character grid](example_outputs/mdn_sample.gif)
 
 # Insights
 

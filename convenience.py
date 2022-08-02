@@ -290,7 +290,7 @@ def mdn_video(target_word, num_samples, scale_sd, clamp_mdn, net, all_loaded_dat
     '''
     words = target_word.split(' ')
     os.makedirs(f"./results/{target_word}_mdn_samples", exist_ok=True)
-    for i in range(0, num_samples):
+    for i in range(num_samples):
         im = Image.fromarray(np.zeros([160, 750]))
         dr = ImageDraw.Draw(im)
         width = 50
