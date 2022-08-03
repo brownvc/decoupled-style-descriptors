@@ -13,12 +13,12 @@ and can exploit any available reference samples (middle) to improve output quali
 
 # License
 
-This project is licenced under the Brown Computer Science Department Copyright Notice, which does not allow commercial use. Plese see details in [here](LICENSE).
+This project is licenced under the Brown Computer Science Department Copyright Notice, which does not allow commercial use. Please see details in [here](LICENSE).
 
 # Preparation (Before you run the code)
 
 In the root of a project directory of your choice, create `./model`, `./data`, and `./results` subdirectories.
-Then, download our pretrained model from [here](https://drive.google.com/file/d/1oK1yWs3xVsVkZRP_Pr7SSPr3dYXpZwax/view?usp=sharing) and save it under the `./model` directory.
+Then, download our pretrained model from [here](https://drive.google.com/file/d/1LlRHdm4GV9rfuVZazgx6HtnQg6x7mezR/view?usp=sharing) and save it under the `./model` directory.
 
 Further, please download the dataset from [here](https://drive.google.com/file/d/1pfUKaYkFu8HpX4f5rlg0spgTk2wwbKzP/view?usp=sharing) and decompress the zip file into the `./data` directory. The folder should be located as `'./data/writers'`.
 
@@ -65,7 +65,7 @@ To specify the word used for interpolation, a list of characters to be interpola
 `--writer_ids`:
 A list of (0 to 169) representing the ids of writer styles to use. If `--interpolation` is not set to `writer`, the first writer id provided will be used.
 
-`--blend_weights`:
+`--blend_weights` (for when `--interpolation=writer`):
 How much to weight each of the writers (typically summing to 1)
 
 `--max_randomness` (for when `--interpolation=randomness`):
@@ -110,6 +110,8 @@ python3 interpolation.py --interpolate character --output video --blend_chars a 
 Result:
 
 ![Character grid](example_outputs/interpolate_abcde.gif)
+
+Uses random sampling to make minor variations in the letters
 
 ```
 python interpolation.py --output video --interpolate randomness --scale_randomness 1 --max_randomness 1 --num_samples 10
