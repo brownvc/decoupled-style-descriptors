@@ -8,7 +8,7 @@ from helper import gaussian_2d
 from config.GlobalVariables import *
 
 class SynthesisNetwork(nn.Module):
-    def __init__(self, weight_dim=512, num_layers=3, scale_sd=1, clamp_mdn=1, sentence_loss=True, word_loss=True, segment_loss=True, TYPE_A=True, TYPE_B=True, TYPE_C=True, TYPE_D=True, ORIGINAL=True, REC=True):
+    def __init__(self, weight_dim=512, num_layers=3, scale_sd=1, clamp_mdn=0, sentence_loss=True, word_loss=True, segment_loss=True, TYPE_A=True, TYPE_B=True, TYPE_C=True, TYPE_D=True, ORIGINAL=True, REC=True):
         super(SynthesisNetwork, self).__init__()
         self.num_mixtures            	= 20
         self.num_layers                	= num_layers
