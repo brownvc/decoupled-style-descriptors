@@ -1,5 +1,6 @@
 
 import os
+import re
 from random import random
 import torch
 import pickle
@@ -291,7 +292,8 @@ def mdn_video(target_word, num_samples, scale_sd, clamp_mdn, net, all_loaded_dat
     max_scale: the maximum value used to scale SD while sampling (increment is based on num samples)
     '''
     words = target_word.split(' ')
-    os.makedirs(f"./results/{target_word}_mdn_samples", exist_ok=True)
+    us_target_word = re.sub(r"\s+", '_', target_word)
+    os.makedirs(f"./results/{us_target_word}_mdn_samples", exist_ok=True)
     for i in range(num_samples):
         im = Image.fromarray(np.zeros([160, 750]))
         dr = ImageDraw.Draw(im)
@@ -313,10 +315,10 @@ def mdn_video(target_word, num_samples, scale_sd, clamp_mdn, net, all_loaded_dat
                 px, py = x, y
             width += np.max(all_commands[:, 0]) + 25
 
-        im.convert("RGB").save(f'results/{target_word}_mdn_samples/sample_{i}.png')
+        im.convert("RGB").save(f'results/{us_target_word}_mdn_samples/sample_{i}.png')
     # Convert fromes to video using ffmpeg
-    photos = ffmpeg.input(f'results/{target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=10)
-    videos = photos.output(f'results/{target_word}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
+    photos = ffmpeg.input(f'results/{us_target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=10)
+    videos = photos.output(f'results/{us_target_word}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
     videos.run(overwrite_output=True)
 
 def sample_blended_writers(writer_weights, target_sentence, net, all_loaded_data, device="cpu"):
