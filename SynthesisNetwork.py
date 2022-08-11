@@ -1563,7 +1563,7 @@ class SynthesisNetwork(nn.Module):
         return commands
 
 
-    def sample_from_w_fix(self, W_c_rec, target_sentence):
+    def sample_from_w_fix(self, W_c_rec):
         gen_input = torch.zeros([1, 1, 3]).to(self.device)
         current_char_id_count = 0
 

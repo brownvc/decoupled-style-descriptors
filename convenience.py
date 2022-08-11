@@ -1,5 +1,6 @@
 
 import os
+import re
 from random import random
 import torch
 import pickle
@@ -205,7 +206,9 @@ def get_writer_blend_W_c(writer_weights, all_Ws, all_Cs):
     W_vectors = (weights_tensor * all_Ws).sum(axis=0).unsqueeze(-1)  # take weighted sum accross writers axis
     char_matrices = all_Cs[0, :, :, :]  # character matrices are independent of writer
 
-    return torch.bmm(char_matrices, W_vectors).reshape(M, 1, L)
+    W_cs = torch.bmm(char_matrices, W_vectors)
+
+    return W_cs.reshape(M, 1, L)
 
 
 def get_character_blend_W_c(character_weights, all_Ws, all_Cs):
@@ -228,14 +231,14 @@ def get_character_blend_W_c(character_weights, all_Ws, all_Cs):
     W_vector = all_Ws[0, 0, :].unsqueeze(-1)
 
     weights_tensor = torch.tensor(character_weights).repeat_interleave(L * L).reshape(1, M, L, L)  # repeat accross remaining dimensions
-    char_matrix = (weights_tensor * all_Cs).sum(axis=1).squeeze()
+    char_matrix = (weights_tensor * all_Cs).sum(axis=1).squeeze() # take weighted sum accross characters axis
 
     W_c = char_matrix @ W_vector
 
     return W_c.reshape(1, 1, L)
 
 
-def get_commands(net, target_word, all_W_c):
+def get_commands(net, target_word, all_W_c): # seems like target_word is only used for length
     """converts character-dependent style-dependent DSDs to a list of commands for drawing"""
     all_commands = []
     current_id = 0
@@ -260,8 +263,8 @@ def get_commands(net, target_word, all_W_c):
                     word_Wc_rec_TYPE_D.append(TYPE_D_out[-1])
                 TYPE_D_REF.append(all_W_c[segment_batch_id][-1])
         WC_ = torch.stack(word_Wc_rec_TYPE_D)
-        tmp_commands, res = net.sample_from_w_fix(WC_, target_word)
-        current_id = current_id + res
+        tmp_commands, res = net.sample_from_w_fix(WC_)
+        current_id += res
         if len(all_commands) == 0:
             all_commands.append(tmp_commands)
         else:
@@ -289,7 +292,8 @@ def mdn_video(target_word, num_samples, scale_sd, clamp_mdn, net, all_loaded_dat
     max_scale: the maximum value used to scale SD while sampling (increment is based on num samples)
     '''
     words = target_word.split(' ')
-    os.makedirs(f"./results/{target_word}_mdn_samples", exist_ok=True)
+    us_target_word = re.sub(r"\s+", '_', target_word)
+    os.makedirs(f"./results/{us_target_word}_mdn_samples", exist_ok=True)
     for i in range(num_samples):
         im = Image.fromarray(np.zeros([160, 750]))
         dr = ImageDraw.Draw(im)
@@ -311,10 +315,10 @@ def mdn_video(target_word, num_samples, scale_sd, clamp_mdn, net, all_loaded_dat
                 px, py = x, y
             width += np.max(all_commands[:, 0]) + 25
 
-        im.convert("RGB").save(f'results/{target_word}_mdn_samples/sample_{i}.png')
+        im.convert("RGB").save(f'results/{us_target_word}_mdn_samples/sample_{i}.png')
     # Convert fromes to video using ffmpeg
-    photos = ffmpeg.input(f'results/{target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=10)
-    videos = photos.output(f'results/{target_word}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
+    photos = ffmpeg.input(f'results/{us_target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=10)
+    videos = photos.output(f'results/{us_target_word}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
     videos.run(overwrite_output=True)
 
 def sample_blended_writers(writer_weights, target_sentence, net, all_loaded_data, device="cpu"):
@@ -372,7 +376,7 @@ def sample_character_grid(letters, grid_size, net, all_loaded_data, device="cpu"
                                  (1 - wx) * wy,       # bottom left is 1 at (0, 1)
                                  wx       * wy]       # bottom right is 1 at (1, 1)
             all_W_c = get_character_blend_W_c(character_weights, all_Ws, all_Cs)
-            all_commands = get_commands(net, "change this later!", all_W_c)
+            all_commands = get_commands(net, letters[0], all_W_c)
 
             offset_x = i * width
             offset_y = j * width
@@ -441,10 +445,71 @@ def writer_interpolation_video(target_sentence, transition_time, net, all_loaded
     videos = photos.output(f"results/{target_sentence}_blend_video.mov", vcodec="libx264", pix_fmt="yuv420p")
     videos.run(overwrite_output=True)
 
+def mdn_single_sample(target_word, scale_sd, clamp_mdn, net, all_loaded_data, device):
+    '''
+    Method creating gif of mdn samples
+    num_samples: number of samples to be inputted
+    max_scale: the maximum value used to scale SD while sampling (increment is based on num samples)
+    '''
+    words = target_word.split(' ')
+    im = Image.fromarray(np.zeros([160, 750]))
+    dr = ImageDraw.Draw(im)
+    width = 50
+
+    net.scale_sd = scale_sd
+    net.clamp_mdn = clamp_mdn
+
+    mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
+
+    for word in words:
+        writer_Ws, writer_Cs = get_DSD(net, word, [mean_global_W], [all_loaded_data[0]], device)
+        all_W_c = get_writer_blend_W_c([1], writer_Ws, writer_Cs)
+        all_commands = get_commands(net, word, all_W_c)
+
+        for [x, y, t] in all_commands:
+            if t == 0:
+                dr.line((px+width, py, x+width, y), 255, 1)
+            px, py = x, y
+        width += np.max(all_commands[:, 0]) + 25
+
+    return im
+
+def sample_blended_chars(character_weights, letters, net, all_loaded_data, device="cpu"):
+    """Generates an image of handwritten text based on target_sentence"""
+
+    width = 60
+    im = Image.fromarray(np.zeros([100, 100]))
+    dr = ImageDraw.Draw(im)
+
+    M = len(letters)
+    mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
+
+    all_Cs = torch.zeros(1, M, L, L)
+    for i in range(M):  # get corners of grid
+        W_vector, char_matrix = get_DSD(net, letters[i], [mean_global_W], [all_loaded_data[0]], device)
+        all_Cs[:, i, :, :] = char_matrix
+
+    all_Ws = mean_global_W.reshape(1, 1, L)
+
+    all_W_c = get_character_blend_W_c(character_weights, all_Ws, all_Cs)
+    all_commands = get_commands(net, letters[0], all_W_c)
+
+    for [x, y, t] in all_commands:
+        if t == 0:
+            dr.line((
+                px + width/2,
+                py - width/2,  # letters are shifted down for some reason
+                x + width/2,
+                y - width/2), 255, 1)
+        px, py = x, y
+
+        
+    return im
+
+
 def char_interpolation_video(letters, transition_time, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
 
-    
     os.makedirs(f"./results/{''.join(letters)}_frames", exist_ok=True) # make a folder for the frames
 
     width = 50
@@ -452,11 +517,9 @@ def char_interpolation_video(letters, transition_time, net, all_loaded_data, dev
     M = len(letters)
     mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
 
-    # all_Ws = torch.zeros(1, M, L)
     all_Cs = torch.zeros(1, M, L, L)
     for i in range(M):  # get corners of grid
         W_vector, char_matrix = get_DSD(net, letters[i], [mean_global_W], [all_loaded_data[0]], device)
-        # all_Ws[:, i, :] = W_vector
         all_Cs[:, i, :, :] = char_matrix
 
     all_Ws = mean_global_W.reshape(1, 1, L)
@@ -486,7 +549,7 @@ def char_interpolation_video(letters, transition_time, net, all_loaded_data, dev
 
     # Convert fromes to video using ffmpeg
     photos = ffmpeg.input(f"results/{''.join(letters)}_frames/frames_*.png", pattern_type='glob', framerate=24)
-    videos = photos.output(f'results/{letters}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
+    videos = photos.output(f"results/{''.join(letters)}_video.mov", vcodec="libx264", pix_fmt="yuv420p")
     videos.run(overwrite_output=True)
 
 

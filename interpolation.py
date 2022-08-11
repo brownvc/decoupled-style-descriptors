@@ -34,27 +34,49 @@ def main(params):
         loaded_data = dl.next_batch(TYPE='TRAIN', uid=writer_id, tids=list(range(params.num_samples)))
         all_loaded_data.append(loaded_data)
 
+    
+    if params.output == "image":
 
-    if params.output == "image" and params.interpolate == "writer":
-        if len(params.blend_weights) != len(params.writer_ids):
-            raise ValueError("writer_ids must be same length as writer_weights")
-        im = convenience.sample_blended_writers(params.blend_weights, params.target_word, net, all_loaded_data, device)
-        im.convert("RGB").save(f'results/blend_{"+".join([str(i) for i in params.writer_ids])}.png')
-    elif params.output == "grid" and params.interpolate == "character":
-        if len(params.grid_chars) != 4:
-            raise ValueError("grid_chars must be given exactly four characters")
-        im = convenience.sample_character_grid(params.grid_chars, params.grid_size, net, all_loaded_data, device)
-        im.convert("RGB").save(f'results/grid_{"".join(params.grid_chars)}.png')
-    elif params.output == "video" and params.interpolate == "writer":
-        convenience.writer_interpolation_video(params.target_word, params.frames_per_step, net, all_loaded_data, device)
-    elif params.output == "video" and params.interpolate == "character":
-        convenience.char_interpolation_video(params.blend_chars, params.frames_per_step, net, all_loaded_data, device)
-    elif params.interpolate == "randomness":
-        if not 0 <= params.max_randomness <= 1:
-            raise ValueError("max_randomness must be between 0 and 1")
-        convenience.mdn_video(params.target_word, params.num_random_samples, params.scale_randomness, params.max_randomness, net, all_loaded_data, device)
+        if params.interpolate == "writer":
+            if len(params.blend_weights) != len(params.writer_ids):
+                raise ValueError("blend_weights must be same length as writer_ids")
+            im = convenience.sample_blended_writers(params.blend_weights, params.target_word, net, all_loaded_data, device)
+            im.convert("RGB").save(f'results/blend_{"+".join([str(i) for i in params.writer_ids])}.png')
+        elif params.interpolate == "character":
+            if len(params.blend_weights) != len(params.blend_chars):
+                raise ValueError("blend_weights must be same length as target_word")
+            im = convenience.sample_blended_chars(params.blend_weights, params.blend_chars, net, all_loaded_data, device)
+            im.convert("RGB").save(f'results/blend_{"+".join(params.blend_chars)}.png')
+        elif params.interpolate == "randomness":
+            if not 0 <= params.max_randomness <= 1:
+                raise ValueError("max_randomness must be between 0 and 1")
+            im = convenience.mdn_single_sample(params.target_word, params.scale_randomness, params.max_randomness, net, all_loaded_data, device)
+            im.convert("RGB").save(f"results/sample_{params.target_word.replace(' ', '_')}.png")
+        else:
+            raise ValueError("Invalid interpolation argument for outputting an image")
+    elif params.output == "grid":
+
+        if params.interpolate == "character":
+            if len(params.grid_chars) != 4:
+                raise ValueError("grid_chars must be given exactly four characters")
+            im = convenience.sample_character_grid(params.grid_chars, params.grid_size, net, all_loaded_data, device)
+            im.convert("RGB").save(f'results/grid_{"".join(params.grid_chars)}.png')
+        else:
+            raise ValueError("Invalid interpolation argument for outputting a grid")
+    elif params.output == "video":
+
+        if params.interpolate == "writer":
+            convenience.writer_interpolation_video(params.target_word, params.frames_per_step, net, all_loaded_data, device)
+        elif params.interpolate == "character":
+            convenience.char_interpolation_video(params.blend_chars, params.frames_per_step, net, all_loaded_data, device)
+        elif params.interpolate == "randomness":
+            if not 0 <= params.max_randomness <= 1:
+                raise ValueError("max_randomness must be between 0 and 1")
+            convenience.mdn_video(params.target_word, params.num_random_samples, params.scale_randomness, params.max_randomness, net, all_loaded_data, device)
+        else:
+            raise ValueError("Invalid interpolation argument for outputting a video")
     else:
-        raise ValueError("Invalid task")
+        raise ValueError("Invalid output")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Arguments for generating samples with the handwriting synthesis model.')
@@ -80,7 +102,7 @@ if __name__ == '__main__':
         # IF VIDEO OR BLEND
     parser.add_argument('--blend_chars', type=str, nargs="+", default = ["a", "b", "c", "d", "e"])
         # IF GRID
-    parser.add_argument('--grid_chars', type=str, nargs="+", default= ["x", "b", "u", "n"])
+    parser.add_argument('--grid_chars', type=str, nargs="+", default= ["y", "s", "u", "n"])
     parser.add_argument('--grid_size', type=int, default=10)
 
     # PARAMS IF RANDOMNESS ITERPOLATION (--output will be ignored):
