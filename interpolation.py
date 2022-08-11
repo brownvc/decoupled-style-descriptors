@@ -47,6 +47,11 @@ def main(params):
                 raise ValueError("blend_weights must be same length as target_word")
             im = convenience.sample_blended_chars(params.blend_weights, params.blend_chars, net, all_loaded_data, device)
             im.convert("RGB").save(f'results/blend_{"+".join(params.blend_chars)}.png')
+        elif params.interpolate == "randomness":
+            if not 0 <= params.max_randomness <= 1:
+                raise ValueError("max_randomness must be between 0 and 1")
+            im = convenience.mdn_single_sample(params.target_word, params.scale_randomness, params.max_randomness, net, all_loaded_data, device)
+            im.convert("RGB").save(f"results/sample_{params.target_word.replace(' ', '_')}.png")
         else:
             raise ValueError("Invalid interpolation argument for outputting an image")
     elif params.output == "grid":

@@ -445,6 +445,35 @@ def writer_interpolation_video(target_sentence, transition_time, net, all_loaded
     videos = photos.output(f"results/{target_sentence}_blend_video.mov", vcodec="libx264", pix_fmt="yuv420p")
     videos.run(overwrite_output=True)
 
+def mdn_single_sample(target_word, scale_sd, clamp_mdn, net, all_loaded_data, device):
+    '''
+    Method creating gif of mdn samples
+    num_samples: number of samples to be inputted
+    max_scale: the maximum value used to scale SD while sampling (increment is based on num samples)
+    '''
+    words = target_word.split(' ')
+    im = Image.fromarray(np.zeros([160, 750]))
+    dr = ImageDraw.Draw(im)
+    width = 50
+
+    net.scale_sd = scale_sd
+    net.clamp_mdn = clamp_mdn
+
+    mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
+
+    for word in words:
+        writer_Ws, writer_Cs = get_DSD(net, word, [mean_global_W], [all_loaded_data[0]], device)
+        all_W_c = get_writer_blend_W_c([1], writer_Ws, writer_Cs)
+        all_commands = get_commands(net, word, all_W_c)
+
+        for [x, y, t] in all_commands:
+            if t == 0:
+                dr.line((px+width, py, x+width, y), 255, 1)
+            px, py = x, y
+        width += np.max(all_commands[:, 0]) + 25
+
+    return im
+
 def sample_blended_chars(character_weights, letters, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
 
