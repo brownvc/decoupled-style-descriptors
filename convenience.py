@@ -295,26 +295,19 @@ def mdn_video(target_word, num_samples, scale_sd, clamp_mdn, net, all_loaded_dat
     us_target_word = re.sub(r"\s+", '_', target_word)
     os.makedirs(f"./results/{us_target_word}_mdn_samples", exist_ok=True)
     for i in range(num_samples):
-        im = Image.fromarray(np.zeros([160, 750]))
-        dr = ImageDraw.Draw(im)
-        width = 50
-
         net.scale_sd = scale_sd
         net.clamp_mdn = clamp_mdn
 
         mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
 
+        word_Ws = []
+        word_Cs = []
         for word in words:
             writer_Ws, writer_Cs = get_DSD(net, word, [mean_global_W], [all_loaded_data[0]], device)
-            all_W_c = get_writer_blend_W_c([1], writer_Ws, writer_Cs)
-            all_commands = get_commands(net, word, all_W_c)
-
-            for [x, y, t] in all_commands:
-                if t == 0:
-                    dr.line((px+width, py, x+width, y), 255, 1)
-                px, py = x, y
-            width += np.max(all_commands[:, 0]) + 25
-
+            word_Ws.append(writer_Ws)
+            word_Cs.append(writer_Cs)
+            
+        im = draw_words(words, word_Ws, word_Cs, [1], net)
         im.convert("RGB").save(f'results/{us_target_word}_mdn_samples/sample_{i}.png')
     # Convert fromes to video using ffmpeg
     photos = ffmpeg.input(f'results/{us_target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=10)
@@ -325,27 +318,19 @@ def sample_blended_writers(writer_weights, target_sentence, net, all_loaded_data
     """Generates an image of handwritten text based on target_sentence"""
     words = target_sentence.split(' ')
 
-    im = Image.fromarray(np.zeros([160, 750]))
-    dr = ImageDraw.Draw(im)
-    width = 50
-
     writer_mean_Ws = []
     for loaded_data in all_loaded_data:
         mean_global_W = get_mean_global_W(net, loaded_data, device)
         writer_mean_Ws.append(mean_global_W)
 
+    word_Ws = []
+    word_Cs = []
     for word in words:
-        all_writer_Ws, all_writer_Cs = get_DSD(net, word, writer_mean_Ws, all_loaded_data, device)
-        all_W_c = get_writer_blend_W_c(writer_weights, all_writer_Ws, all_writer_Cs)
-        all_commands = get_commands(net, word, all_W_c)
-
-        for [x, y, t] in all_commands:
-            if t == 0:
-                dr.line((px+width, py, x+width, y), 255, 1)
-            px, py = x, y
-        width += np.max(all_commands[:, 0]) + 25
-
-    return im
+        writer_Ws, writer_Cs = get_DSD(net, word, writer_mean_Ws, all_loaded_data, device)
+        word_Ws.append(writer_Ws)
+        word_Cs.append(writer_Cs)
+        
+    return draw_words(words, word_Ws, word_Cs, writer_weights, net)
 
 
 def sample_character_grid(letters, grid_size, net, all_loaded_data, device="cpu"):
@@ -418,26 +403,12 @@ def writer_interpolation_video(target_sentence, transition_time, net, all_loaded
 
     for i in range(n - 1):
         for j in range(transition_time):
-            im = Image.fromarray(np.zeros([160, 750]))
-            dr = ImageDraw.Draw(im)
-            width = 50
-
             completion = j/(transition_time)
 
             individual_weights = [1 - completion, completion]
             writer_weights = [0] * i + individual_weights + [0] * (n - 2 - i)
-
-            for k, word in enumerate(words):
-                all_writer_Ws, all_writer_Cs = word_Ws[k], word_Cs[k]
-                all_W_c = get_writer_blend_W_c(writer_weights, all_writer_Ws, all_writer_Cs)
-                all_commands = get_commands(net, word, all_W_c)
-
-                for [x, y, t] in all_commands:
-                    if t == 0:
-                        dr.line((px+width, py, x+width, y), 255, 1)
-                    px, py = x, y
-                width += np.max(all_commands[:, 0]) + 25
-
+            
+            im = draw_words(words, word_Ws, word_Cs, writer_weights, net)
             im.convert("RGB").save(f"./results/{target_sentence}_blend_frames/frame_{str(i * transition_time + j).zfill(3)}.png")
 
     # Convert fromes to video using ffmpeg
@@ -452,27 +423,21 @@ def mdn_single_sample(target_word, scale_sd, clamp_mdn, net, all_loaded_data, de
     max_scale: the maximum value used to scale SD while sampling (increment is based on num samples)
     '''
     words = target_word.split(' ')
-    im = Image.fromarray(np.zeros([160, 750]))
-    dr = ImageDraw.Draw(im)
-    width = 50
 
     net.scale_sd = scale_sd
     net.clamp_mdn = clamp_mdn
 
     mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
 
+    word_Ws = []
+    word_Cs = []
     for word in words:
         writer_Ws, writer_Cs = get_DSD(net, word, [mean_global_W], [all_loaded_data[0]], device)
-        all_W_c = get_writer_blend_W_c([1], writer_Ws, writer_Cs)
-        all_commands = get_commands(net, word, all_W_c)
+        word_Ws.append(writer_Ws)
+        word_Cs.append(writer_Cs)
 
-        for [x, y, t] in all_commands:
-            if t == 0:
-                dr.line((px+width, py, x+width, y), 255, 1)
-            px, py = x, y
-        width += np.max(all_commands[:, 0]) + 25
+    return draw_words(words, word_Ws, word_Cs, [1], net)
 
-    return im
 
 def sample_blended_chars(character_weights, letters, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
@@ -534,7 +499,6 @@ def char_interpolation_video(letters, transition_time, net, all_loaded_data, dev
 
             im = Image.fromarray(np.zeros([100, 100]))
             dr = ImageDraw.Draw(im)
-
             for [x, y, t] in all_commands:
                 if t == 0:
                     dr.line((
@@ -553,3 +517,18 @@ def char_interpolation_video(letters, transition_time, net, all_loaded_data, dev
     videos.run(overwrite_output=True)
 
 
+def draw_words(words, word_Ws, word_Cs, writer_weights, net):
+    im = Image.fromarray(np.zeros([160, 750]))
+    dr = ImageDraw.Draw(im)
+    width = 50
+    for word, all_writer_Ws, all_writer_Cs in zip(words, word_Ws, word_Cs):
+        all_W_c = get_writer_blend_W_c(writer_weights, all_writer_Ws, all_writer_Cs)
+        all_commands = get_commands(net, word, all_W_c)
+
+        for [x, y, t] in all_commands:
+            if t == 0:
+                dr.line((px+width, py, x+width, y), 255, 1)
+            px, py = x, y
+        width += np.max(all_commands[:, 0]) + 25
+
+    return im
