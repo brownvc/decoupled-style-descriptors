@@ -1,5 +1,4 @@
 import torch
-import argparse
 import numpy as np
 from helper import *
 from config.GlobalVariables import *
@@ -77,8 +76,9 @@ def update_writer_slider(val):
     weights = [1 - writer_weight, writer_weight]
 
     net.clamp_mdn = 0
-    im = convenience.draw_words(writer_words, all_word_writer_Ws, all_word_writer_Cs, weights, net)
-    return im.convert("RGB")
+    svg = convenience.draw_words_svg(writer_words, all_word_writer_Ws, all_word_writer_Cs, weights, net)
+    svg.saveas("DSD_writer_interpolation.svg")
+    return gr.HTML.update(value=svg.tostring()), gr.File.update(value="./DSD_writer_interpolation.svg")
 
 
 def update_chosen_writers(writer1, writer2):
@@ -95,7 +95,7 @@ def update_chosen_writers(writer1, writer2):
         mean_global_W = convenience.get_mean_global_W(net, loaded_data, device)
         writer_mean_Ws.append(mean_global_W)
 
-    return gr.Slider.update(label=f"{writer1} vs. {writer2}"), update_writer_slider(writer_weight)
+    return gr.Slider.update(label=f"{writer1} vs. {writer2}"), *update_writer_slider(writer_weight)
 
 # for character blend
 
@@ -110,9 +110,9 @@ def update_char_slider(weight):
 
     all_W_c = convenience.get_character_blend_W_c(character_weights, char_Ws, char_Cs)
     all_commands = convenience.get_commands(net, blend_chars[0], all_W_c)
-    im = convenience.commands_to_image(all_commands, 160, 750, 375, 30)
-
-    return im.convert("RGB")
+    svg = convenience.commands_to_svg(all_commands, 750, 160, 375)
+    svg.saveas("DSD_char_interpolation.svg")
+    return gr.HTML.update(value=svg.tostring()), gr.File.update(value="./DSD_char_interpolation.svg")
 
 
 def update_blend_chars(c1, c2):
@@ -146,8 +146,9 @@ def update_mdn_word(target_word):
 def sample_mdn(maxs, maxr):
     net.clamp_mdn = maxr
     net.scale_sd = maxs
-    im = convenience.draw_words(mdn_words, all_word_mdn_Ws, all_word_mdn_Cs, [1], net)
-    return im.convert("RGB")
+    svg = convenience.draw_words_svg(mdn_words, all_word_mdn_Ws, all_word_mdn_Cs, [1], net)
+    svg.saveas("DSD_add_randomness.svg")
+    return gr.HTML.update(value=svg.tostring()), gr.File.update(value="./DSD_add_randomness.svg")
 
 
 update_writer_word(" ".join(writer_words))
@@ -174,14 +175,15 @@ with gr.Blocks() as demo:
                 writer_submit = gr.Button("Submit")
             with gr.Row():
                 writer_default_image = update_writer_slider(writer_weight)
-                writer_output = gr.Image(writer_default_image)
+                writer_output = gr.HTML(writer_default_image[0]["value"])
+            with gr.Row():
+                writer_download = gr.File("./DSD_writer_interpolation.svg", interactive=False, show_label=False)
+            writer_submit.click(fn=update_writer_slider, inputs=[writer_slider], outputs=[writer_output, writer_download], show_progress=False)
+            writer_slider.change(fn=update_writer_slider, inputs=[writer_slider], outputs=[writer_output, writer_download], show_progress=False)
+            target_word.submit(fn=update_writer_word, inputs=[target_word], outputs=[writer_output, writer_download], show_progress=False)
 
-            writer_submit.click(fn=update_writer_slider, inputs=[writer_slider], outputs=[writer_output], show_progress=False)
-            writer_slider.change(fn=update_writer_slider, inputs=[writer_slider], outputs=[writer_output], show_progress=False)
-            target_word.submit(fn=update_writer_word, inputs=[target_word], outputs=[writer_output], show_progress=False)
-
-            writer1.change(fn=update_chosen_writers, inputs=[writer1, writer2], outputs=[writer_slider, writer_output])
-            writer2.change(fn=update_chosen_writers, inputs=[writer1, writer2], outputs=[writer_slider, writer_output])
+            writer1.change(fn=update_chosen_writers, inputs=[writer1, writer2], outputs=[writer_slider, writer_output, writer_download])
+            writer2.change(fn=update_chosen_writers, inputs=[writer1, writer2], outputs=[writer_slider, writer_output, writer_download])
 
         with gr.TabItem("Blend Characters"):
             with gr.Row():
@@ -193,12 +195,14 @@ with gr.Blocks() as demo:
                 char_slider = gr.Slider(0, 1, value=char_weight, label=f"'{blend_chars[0]}' vs. '{blend_chars[1]}'")
             with gr.Row():
                 char_default_image = update_char_slider(char_weight)
-                char_output = gr.Image(char_default_image)
+                char_output = gr.HTML(char_default_image[0]["value"])
+            with gr.Row():
+                char_download = gr.File("./DSD_char_interpolation.svg", interactive=False, show_label=False)
 
-            char_slider.change(fn=update_char_slider, inputs=[char_slider], outputs=[char_output], show_progress=False)
+            char_slider.change(fn=update_char_slider, inputs=[char_slider], outputs=[char_output, char_download], show_progress=False)
 
-            char1.change(fn=update_blend_chars, inputs=[char1, char2], outputs=[char_slider])
-            char2.change(fn=update_blend_chars, inputs=[char1, char2], outputs=[char_slider])
+            char1.change(fn=update_blend_chars, inputs=[char1, char2], outputs=[char_slider, char_download])
+            char2.change(fn=update_blend_chars, inputs=[char1, char2], outputs=[char_slider, char_download])
 
         with gr.TabItem("Add Randomness"):
             mdn_word = gr.Textbox(label="Target Word", value=" ".join(mdn_words), max_lines=1)
@@ -211,11 +215,13 @@ with gr.Blocks() as demo:
                 mdn_sample_button = gr.Button(value="Resample!")
             with gr.Row():
                 default_im = sample_mdn(net.scale_sd, net.clamp_mdn)
-                mdn_output = gr.Image(default_im)
+                mdn_output = gr.HTML(default_im[0]["value"])
+            with gr.Row():
+                randomness_download = gr.File("./DSD_add_randomness.svg", interactive=False, show_label=False)
 
-            max_rand.change(fn=sample_mdn, inputs=[scale_rand, max_rand], outputs=[mdn_output], show_progress=False)
-            scale_rand.change(fn=sample_mdn, inputs=[scale_rand, max_rand], outputs=[mdn_output], show_progress=False)
-            mdn_sample_button.click(fn=sample_mdn, inputs=[scale_rand, max_rand], outputs=[mdn_output], show_progress=False)
-            mdn_word.submit(fn=update_mdn_word, inputs=[mdn_word], outputs=[mdn_output], show_progress=False)
+            max_rand.change(fn=sample_mdn, inputs=[scale_rand, max_rand], outputs=[mdn_output, randomness_download], show_progress=False)
+            scale_rand.change(fn=sample_mdn, inputs=[scale_rand, max_rand], outputs=[mdn_output, randomness_download], show_progress=False)
+            mdn_sample_button.click(fn=sample_mdn, inputs=[scale_rand, max_rand], outputs=[mdn_output, randomness_download], show_progress=False)
+            mdn_word.submit(fn=update_mdn_word, inputs=[mdn_word], outputs=[mdn_output, randomness_download], show_progress=False)
 
 demo.launch()

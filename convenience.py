@@ -14,9 +14,11 @@ from config.GlobalVariables import *
 from tensorboardX import SummaryWriter
 from SynthesisNetwork import SynthesisNetwork
 from DataLoader import DataLoader
-import ffmpeg # for problems with ffmpeg uninstall ffmpeg and then install ffmpeg-python
+import svgwrite
+# import ffmpeg # for problems with ffmpeg uninstall ffmpeg and then install ffmpeg-python
 
 L = 256
+
 
 def get_mean_global_W(net, loaded_data, device):
     """gets the mean global style vector for a given writer"""
@@ -231,14 +233,14 @@ def get_character_blend_W_c(character_weights, all_Ws, all_Cs):
     W_vector = all_Ws[0, 0, :].unsqueeze(-1)
 
     weights_tensor = torch.tensor(character_weights).repeat_interleave(L * L).reshape(1, M, L, L)  # repeat accross remaining dimensions
-    char_matrix = (weights_tensor * all_Cs).sum(axis=1).squeeze() # take weighted sum accross characters axis
+    char_matrix = (weights_tensor * all_Cs).sum(axis=1).squeeze()  # take weighted sum accross characters axis
 
     W_c = char_matrix @ W_vector
 
     return W_c.reshape(1, 1, L)
 
 
-def get_commands(net, target_word, all_W_c): # seems like target_word is only used for length
+def get_commands(net, target_word, all_W_c):  # seems like target_word is only used for length
     """converts character-dependent style-dependent DSDs to a list of commands for drawing"""
     all_commands = []
     current_id = 0
@@ -285,6 +287,7 @@ def get_commands(net, target_word, all_W_c): # seems like target_word is only us
 
     return commands
 
+
 def mdn_video(target_word, num_samples, scale_sd, clamp_mdn, net, all_loaded_data, device):
     '''
     Method creating gif of mdn samples
@@ -306,13 +309,14 @@ def mdn_video(target_word, num_samples, scale_sd, clamp_mdn, net, all_loaded_dat
             writer_Ws, writer_Cs = get_DSD(net, word, [mean_global_W], [all_loaded_data[0]], device)
             word_Ws.append(writer_Ws)
             word_Cs.append(writer_Cs)
-            
+
         im = draw_words(words, word_Ws, word_Cs, [1], net)
         im.convert("RGB").save(f'results/{us_target_word}_mdn_samples/sample_{i}.png')
     # Convert fromes to video using ffmpeg
     photos = ffmpeg.input(f'results/{us_target_word}_mdn_samples/sample_*.png', pattern_type='glob', framerate=10)
     videos = photos.output(f'results/{us_target_word}_video.mov', vcodec="libx264", pix_fmt="yuv420p")
     videos.run(overwrite_output=True)
+
 
 def sample_blended_writers(writer_weights, target_sentence, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
@@ -329,7 +333,7 @@ def sample_blended_writers(writer_weights, target_sentence, net, all_loaded_data
         writer_Ws, writer_Cs = get_DSD(net, word, writer_mean_Ws, all_loaded_data, device)
         word_Ws.append(writer_Ws)
         word_Cs.append(writer_Cs)
-        
+
     return draw_words(words, word_Ws, word_Cs, writer_weights, net)
 
 
@@ -356,10 +360,10 @@ def sample_character_grid(letters, grid_size, net, all_loaded_data, device="cpu"
             wx = i / (grid_size - 1)
             wy = j / (grid_size - 1)
 
-            character_weights = [(1 - wx) * (1 - wy), # top left is 1 at (0, 0)
-                                 wx       * (1 - wy), # top right is 1  at (1, 0)
+            character_weights = [(1 - wx) * (1 - wy),  # top left is 1 at (0, 0)
+                                 wx * (1 - wy),  # top right is 1  at (1, 0)
                                  (1 - wx) * wy,       # bottom left is 1 at (0, 1)
-                                 wx       * wy]       # bottom right is 1 at (1, 1)
+                                 wx * wy]       # bottom right is 1 at (1, 1)
             all_W_c = get_character_blend_W_c(character_weights, all_Ws, all_Cs)
             all_commands = get_commands(net, letters[0], all_W_c)
 
@@ -376,6 +380,7 @@ def sample_character_grid(letters, grid_size, net, all_loaded_data, device="cpu"
                 px, py = x, y
 
     return im
+
 
 def writer_interpolation_video(target_sentence, transition_time, net, all_loaded_data, device="cpu"):
     """
@@ -407,7 +412,7 @@ def writer_interpolation_video(target_sentence, transition_time, net, all_loaded
 
             individual_weights = [1 - completion, completion]
             writer_weights = [0] * i + individual_weights + [0] * (n - 2 - i)
-            
+
             im = draw_words(words, word_Ws, word_Cs, writer_weights, net)
             im.convert("RGB").save(f"./results/{target_sentence}_blend_frames/frame_{str(i * transition_time + j).zfill(3)}.png")
 
@@ -415,6 +420,7 @@ def writer_interpolation_video(target_sentence, transition_time, net, all_loaded
     photos = ffmpeg.input(f"./results/{target_sentence}_blend_frames/frame_*.png", pattern_type='glob', framerate=10)
     videos = photos.output(f"results/{target_sentence}_blend_video.mov", vcodec="libx264", pix_fmt="yuv420p")
     videos.run(overwrite_output=True)
+
 
 def mdn_single_sample(target_word, scale_sd, clamp_mdn, net, all_loaded_data, device):
     '''
@@ -442,10 +448,6 @@ def mdn_single_sample(target_word, scale_sd, clamp_mdn, net, all_loaded_data, de
 def sample_blended_chars(character_weights, letters, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
 
-    width = 60
-    im = Image.fromarray(np.zeros([100, 100]))
-    dr = ImageDraw.Draw(im)
-
     M = len(letters)
     mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
 
@@ -459,25 +461,14 @@ def sample_blended_chars(character_weights, letters, net, all_loaded_data, devic
     all_W_c = get_character_blend_W_c(character_weights, all_Ws, all_Cs)
     all_commands = get_commands(net, letters[0], all_W_c)
 
-    for [x, y, t] in all_commands:
-        if t == 0:
-            dr.line((
-                px + width/2,
-                py - width/2,  # letters are shifted down for some reason
-                x + width/2,
-                y - width/2), 255, 1)
-        px, py = x, y
-
-        
+    im = commands_to_image(all_commands, 100, 100, 30, 30)
     return im
 
 
 def char_interpolation_video(letters, transition_time, net, all_loaded_data, device="cpu"):
     """Generates an image of handwritten text based on target_sentence"""
 
-    os.makedirs(f"./results/{''.join(letters)}_frames", exist_ok=True) # make a folder for the frames
-
-    width = 50
+    os.makedirs(f"./results/{''.join(letters)}_frames", exist_ok=True)  # make a folder for the frames
 
     M = len(letters)
     mean_global_W = get_mean_global_W(net, all_loaded_data[0], device)
@@ -495,20 +486,9 @@ def char_interpolation_video(letters, transition_time, net, all_loaded_data, dev
             individual_weights = [1 - completion, completion]
             character_weights = [0] * i + individual_weights + [0] * (M - 2 - i)
             all_W_c = get_character_blend_W_c(character_weights, all_Ws, all_Cs)
-            all_commands = get_commands(net, "change this later!", all_W_c)
+            all_commands = get_commands(net, letters[i], all_W_c)
 
-            im = Image.fromarray(np.zeros([100, 100]))
-            dr = ImageDraw.Draw(im)
-            for [x, y, t] in all_commands:
-                if t == 0:
-                    dr.line((
-                        px + width/2,
-                        py - width/2,  # letters are shifted down for some reason
-                        x + width/2,
-                        y - width/2), 255, 1)
-                px, py = x, y
-
-                
+            im = commands_to_image(all_commands, 100, 100, 25, 25)
             im.convert("RGB").save(f"results/{''.join(letters)}_frames/frames_{str(i * transition_time + j).zfill(3)}.png")
 
     # Convert fromes to video using ffmpeg
@@ -532,3 +512,47 @@ def draw_words(words, word_Ws, word_Cs, writer_weights, net):
         width += np.max(all_commands[:, 0]) + 25
 
     return im
+
+
+def draw_words_svg(words, word_Ws, word_Cs, writer_weights, net):
+    dwg = svgwrite.Drawing("output.svg", size=(750, 160), style="background-color: black;")
+    width = 50
+    for word, all_writer_Ws, all_writer_Cs in zip(words, word_Ws, word_Cs):
+        all_W_c = get_writer_blend_W_c(writer_weights, all_writer_Ws, all_writer_Cs)
+        all_commands = get_commands(net, word, all_W_c)
+
+        for [x, y, t] in all_commands:
+            if t == 0:
+                path.push("L", x + width, y)
+            else:
+                path = svgwrite.path.Path(stroke="white", stroke_width="1")
+                dwg.add(path)
+            path.push("M", x + width, y)
+        width += np.max(all_commands[:, 0]) + 25
+    return dwg
+
+
+def commands_to_image(commands, imW, imH, xoff, yoff):
+    im = Image.fromarray(np.zeros([imW, imH]))
+    dr = ImageDraw.Draw(im)
+    for [x, y, t] in commands:
+        if t == 0:
+            dr.line((
+                px + xoff,
+                py - yoff,  # letters are shifted down for some reason
+                x + xoff,
+                y - yoff), 255, 1)
+        px, py = x, y
+    return im
+
+
+def commands_to_svg(commands, imW, imH, xoff):
+    dwg = svgwrite.Drawing("output.svg", size=(imW, imH), style="background-color:black")
+    for [x, y, t] in commands:
+        if t == 0:
+            path.push("L", x + xoff, y)
+        else:
+            path = svgwrite.path.Path(stroke="white", stroke_width="1")
+            dwg.add(path)
+        path.push("M", x + xoff, y)
+    return dwg
