@@ -19,4 +19,5 @@ results/*
 original_BRUSH.zip
 dsd_env/
 loss_graphs/
-model_new/*
+model_old/*
+*.svg
