@@ -46,7 +46,7 @@ The provided model has been trained using the following command:
 python -u main.py --divider 5.0 --weight_dim 256 --sample 5 --device 0 --num_layers 3 --num_writer 1 --lr 0.001 --VALIDATION 1 --datadir 2 --TYPE_B 0 --TYPE_C 0
 ```
 
-You can also interpolate between pre-set handwriting styles as well as between characters with:
+There is an [online demo](https://huggingface.co/spaces/brayden-gg/decoupled-style-descriptors) demonstrating handwriting interpolation, character interpolation, and mdn sampling (savable as SVG files). You can also further explore these features with:
 
 ```
 python interpolation.py
