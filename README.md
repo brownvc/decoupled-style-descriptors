@@ -15,10 +15,9 @@ and can exploit any available reference samples (middle) to improve output quali
 
 # Demo
 
-To start without any code, there is an [online demo](https://huggingface.co/spaces/brayden-gg/decoupled-style-descriptors) demonstrating handwriting interpolation, character interpolation, and MDN sampling, with SVG export for you to use in any other program. The demo can also be run locally by running the `app.py` program and visiting the generated localhost URL.
+To start without any code, there is an [online demo](https://huggingface.co/spaces/brayden-gg/decoupled-style-descriptors) demonstrating writer interpolation, character interpolation, and mixture-density-network (MDN) sampling, with SVG export for you to use in any other program. The demo can also be run locally by running the `app.py` program and visiting the generated localhost URL.
 
 ![Online Demo](example_outputs/online_demo.gif)
-
 
 # Example Interpolations:
 
